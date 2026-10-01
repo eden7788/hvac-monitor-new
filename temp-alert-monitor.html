@@ -1,0 +1,1936 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>이상온도 봇 리포트 관리</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--surface:#fff;--surface2:#f9f8f5;--border:#e0ded8;--border2:#ccc;
+  --text:#1a1a18;--text2:#6b6b65;--text3:#9a9a95;
+  --ok:#1d9e75;--ok-bg:#eaf3de;--warn:#ba7517;--warn-bg:#faeeda;
+  --danger:#c0392b;--danger-bg:#fcebeb;--info:#185fa5;--info-bg:#e6f1fb;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:14px;color:var(--text);background:var(--bg);min-height:100vh}
+.app{max-width:1200px;margin:0 auto;padding:16px}
+.header{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.header-title{font-size:17px;font-weight:600}
+.header-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.tab-bar{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tab{padding:9px 18px;cursor:pointer;font-size:13px;color:var(--text2);border:none;background:none;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;font-weight:500}
+.tab.active{color:var(--text);border-bottom:2px solid var(--text)}
+.section{display:none}.section.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.stat-label{font-size:11px;color:var(--text2);margin-bottom:4px}
+.stat-val{font-size:24px;font-weight:600}
+.stat-val.danger{color:var(--danger)}.stat-val.warn{color:var(--warn)}.stat-val.info{color:var(--info)}.stat-val.ok{color:var(--ok)}
+.btn{padding:7px 14px;border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;font-size:13px;background:var(--surface);color:var(--text);font-family:inherit;font-weight:500}
+.btn:hover{background:var(--surface2)}
+.btn-primary{background:var(--text);color:#fff;border-color:transparent}
+.btn-primary:hover{background:#333}
+.btn-sm{padding:4px 10px;font-size:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,select,textarea{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text);font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#888}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-danger{background:var(--danger-bg);color:var(--danger)}
+.badge-warn{background:var(--warn-bg);color:var(--warn)}
+.badge-ok{background:var(--ok-bg);color:var(--ok)}
+.badge-info{background:var(--info-bg);color:var(--info)}
+.brand-group{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;overflow:hidden}
+.brand-head{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;background:var(--surface)}
+.brand-head:hover{background:var(--surface2)}
+.brand-name{font-weight:600;flex:1}
+.brand-meta{font-size:12px;color:var(--text2)}
+.chevron{font-size:11px;color:var(--text3);transition:transform .2s}
+.chevron.open{transform:rotate(90deg)}
+.store-list{display:none;border-top:1px solid var(--border);background:var(--surface2)}
+.store-list.open{display:block}
+.store-row{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 28px;border-bottom:1px solid var(--border);cursor:pointer}
+.store-row:last-child{border-bottom:none}
+.store-row:hover{background:#f0efe9}
+.store-name{flex:1;font-size:13px}
+.store-detail{display:none;padding:10px 16px 14px 28px;background:#fafaf8;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.6}
+.store-detail.open{display:block}
+.watch-star{color:var(--warn3,#ba7517);cursor:pointer;font-size:13px}
+.empty{text-align:center;padding:2.5rem;color:var(--text3);font-size:13px}
+.setting-row{padding:12px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-weight:600;font-size:13px;margin-bottom:4px}
+.setting-desc{font-size:12px;color:var(--text2);margin-bottom:8px}
+.setting-row textarea{width:100%;height:100px;resize:vertical}
+.status-line{font-size:12px;color:var(--text2);margin-top:8px;white-space:pre-line}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.sync-badge{font-size:12px;padding:4px 10px;border-radius:12px;font-weight:600;border:1px solid transparent}
+.hist-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.hist-row:last-child{border-bottom:none}
+.trend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.brand-chip{font-size:10px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0 5px;margin-left:4px}
+.comment-box{width:100%;min-height:44px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;background:#fffdf5;color:var(--text);resize:vertical}
+.comment-box:focus{outline:none;border-color:#888}
+.meta-label{display:inline-block;font-size:10px;font-weight:700;color:var(--text2);background:var(--surface2);border-radius:4px;padding:1px 5px;margin-right:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+  <div>
+    <div class="header-title">🌡️ 이상온도 봇 리포트 관리</div>
+    <div class="header-sub" id="last-sync">아직 불러온 리포트가 없어요</div>
+  </div>
+  <span id="sync-status" class="sync-badge" style="background:#f5f4f0;color:#9a9a95;border-color:#e0ded8">⏳ 연결 중...</span>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="switchTab('dash',this)">대시보드</button>
+  <button class="tab" onclick="switchTab('history',this)">히스토리</button>
+  <button class="tab" onclick="switchTab('settings',this)">설정</button>
+</div>
+
+<!-- ===== 대시보드 ===== -->
+<div id="tab-dash" class="section active">
+  <div class="card">
+    <div class="row">
+      <span style="font-size:13px;color:var(--text2)">불러올 리포트 시각</span>
+      <input type="date" id="rpt-date">
+      <select id="rpt-hour" style="width:100px"></select>
+    </div>
+    <div style="margin-top:10px">
+      <input type="file" id="report-file" accept=".html,.htm" multiple onchange="ingestFile(this)">
+    </div>
+    <div class="status-line" id="fetch-status"></div>
+  </div>
+
+  <div id="dash-content" style="display:none">
+    <div class="row" style="margin-bottom:10px">
+      <span style="font-size:13px;color:var(--text2)">📅 조회 날짜</span>
+      <input type="date" id="dash-date" onchange="onDashDateChange()">
+      <button class="btn btn-sm" id="mode-daily" onclick="setDashMode('daily')">일별 통합보기</button>
+      <button class="btn btn-sm" id="mode-hourly" onclick="setDashMode('hourly')">시간대별 보기</button>
+      <span id="dash-hour-wrap" style="display:none;align-items:center;gap:6px">
+        <select id="dash-hour" onchange="onDashHourChange()"></select>
+      </span>
+      <button class="btn btn-sm" onclick="exportCsv()">📊 CSV 내보내기</button>
+      <button class="btn btn-sm" id="btn-slack-copy" onclick="copySlackReport()">💬 슬랙 보고서 복사</button>
+    </div>
+    <div id="dash-stale-notice" style="display:none;margin-bottom:10px;padding:10px 12px;border:1px solid #f0c36d;background:#fff8e6;border-radius:8px;font-size:12.5px;color:#7a5200;line-height:1.6"></div>
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-label">이상 매장</div><div class="stat-val danger" id="s-stores">0</div></div>
+      <div class="stat"><div class="stat-label"><span id="s-issues-label">이상 건수</span> <span id="s-hidden" style="color:var(--text3)"></span></div><div class="stat-val warn" id="s-issues">0</div></div>
+      <div class="stat"><div class="stat-label">⚠️ 긴급</div><div class="stat-val danger" id="s-urgent">0</div></div>
+      <div class="stat"><div class="stat-label">관심 매장 중 이상</div><div class="stat-val info" id="s-watched">0</div></div>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="store-search" placeholder="매장/브랜드 검색..." style="width:220px" oninput="renderDash()">
+      <label style="font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="watch-only" onchange="renderDash()"> ⭐ 관심 매장만 보기
+      </label>
+      <label style="font-size:13px;display:flex;align-items:center;gap:5px;cursor:pointer">
+        <input type="checkbox" id="urgent-only" onchange="renderDash()"> ⚠️ 긴급만 보기
+      </label>
+      <select id="action-filter" onchange="renderDash()" style="font-size:13px">
+        <option value="all">조치 상태: 전체</option>
+        <option value="none">미확인만</option>
+        <option value="progress">진행 중 (확인 중·매장 연락·출동 요청)</option>
+        <option value="done">조치 완료</option>
+      </select>
+    </div>
+    <div id="store-groups"></div>
+  </div>
+</div>
+
+<!-- ===== 히스토리 ===== -->
+<div id="tab-history" class="section">
+  <div class="card">
+    <div class="setting-label">📊 시간대별 수집 이력</div>
+    <div class="setting-desc">지금까지 자동/수동으로 가져온 리포트 목록이에요.</div>
+    <div class="filter-bar">
+      <span style="font-size:12px;color:var(--text2)">기간</span>
+      <input type="date" id="hist-from" onchange="renderHistoryList()">
+      <span style="font-size:12px;color:var(--text2)">~</span>
+      <input type="date" id="hist-to" onchange="renderHistoryList()">
+      <button class="btn btn-sm" onclick="document.getElementById('hist-from').value='';document.getElementById('hist-to').value='';renderHistoryList()">전체기간</button>
+    </div>
+    <div id="hist-summary" style="margin-bottom:10px"></div>
+    <div id="hist-list"></div>
+  </div>
+  <div class="card">
+    <div class="setting-label">🔎 브랜드/매장별 이상 추이</div>
+    <div class="setting-desc">브랜드명을 검색하면 그 브랜드 전체 매장의 합계 추이를, 매장명을 검색하면 그 매장 하나의 추이를 보여드려요.</div>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="trend-store" list="trend-suggest" placeholder="브랜드 또는 매장명 검색..." style="width:260px" oninput="renderTrend()">
+      <datalist id="trend-suggest"></datalist>
+    </div>
+    <div id="trend-result"></div>
+  </div>
+  <div class="card">
+    <div class="setting-label">🔁 매장별 기기 이상 이력</div>
+    <div class="setting-desc">매장명(또는 브랜드명)을 입력하면 기간 안에 그 매장의 기기별로 언제·몇 번·왜 이상으로 잡혔는지 모아서 보여드려요. 행을 누르면 날짜별 상세가 펼쳐져요.</div>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="devhist-store" list="trend-suggest" placeholder="매장명 또는 브랜드명..." style="width:240px" onkeydown="if(event.key==='Enter')runDeviceHistory()">
+      <select id="devhist-days">
+        <option value="7">최근 7일</option>
+        <option value="30" selected>최근 30일</option>
+        <option value="90">최근 90일</option>
+      </select>
+      <button class="btn btn-sm btn-primary" onclick="runDeviceHistory()">조회</button>
+    </div>
+    <div id="devhist-result"></div>
+  </div>
+  <div class="card">
+    <div class="setting-label">🗒 코멘트 히스토리</div>
+    <div class="setting-desc">매장/센서에 남긴 코멘트가 시간순으로 기록돼요. 매장명으로 검색해보세요.</div>
+    <div class="row" style="margin-bottom:10px">
+      <input type="text" id="comment-search" placeholder="매장명 검색..." style="width:260px" oninput="renderCommentHistory()">
+    </div>
+    <div id="comment-hist-result"></div>
+  </div>
+</div>
+
+<!-- ===== 설정 ===== -->
+<div id="tab-settings" class="section">
+  <div class="card">
+    <div class="setting-row">
+      <div class="setting-label">👤 내 이름</div>
+      <div class="setting-desc">코멘트·조치 상태·정상 처리를 남길 때 함께 기록돼요. 이 브라우저에만 저장됩니다.</div>
+      <input type="text" id="s-username" style="width:200px" placeholder="예: 홍길동" onchange="saveUserName(this.value)">
+      <span id="username-saved" style="font-size:12px;color:var(--ok);margin-left:8px;display:none">✓ 저장됨</span>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">Slack 채널 ID</div>
+      <div class="setting-desc">리포트 URL의 채널 부분이에요. 보통 바꿀 일 없어요.</div>
+      <input type="text" id="s-channel" style="width:260px" value="C0BRL7W5P1B">
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">⭐ 관심 브랜드 (줄바꿈으로 구분)</div>
+      <div class="setting-desc">여기 등록된 브랜드에 속한 매장은 전부 "관심 매장"으로 표시돼요.</div>
+      <textarea id="s-brands"></textarea>
+    </div>
+    <div class="setting-row">
+      <div class="setting-label">⭐ 관심 매장 (개별, 줄바꿈으로 구분)</div>
+      <div class="setting-desc">브랜드 등록 없이 특정 매장만 개별로 관심 등록할 수 있어요.</div>
+      <textarea id="s-stores-watch"></textarea>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="saveSettings()">설정 저장</button>
+      <span id="settings-saved" style="font-size:12px;color:var(--ok);margin-left:10px;display:none">✓ 저장됨</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="setting-label">대시보드에서 별표로 추가한 매장/브랜드</div>
+    <div class="setting-desc">대시보드에서 ⭐를 눌러 추가한 항목도 여기 설정과 함께 저장돼요.</div>
+    <button class="btn btn-sm btn-danger" style="background:var(--danger-bg);color:var(--danger);border-color:var(--danger)" onclick="clearWatch()">관심 목록 전체 초기화</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ========== FIREBASE (기존 온습도 모니터링 앱과 같은 프로젝트, 다른 경로 사용) ==========
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyB0BgYp7IslWaoo0v9J4tRCUOvky_zsqqk",
+  authDomain: "temp-monit.firebaseapp.com",
+  databaseURL: "https://temp-monit-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "temp-monit",
+  storageBucket: "temp-monit.firebasestorage.app",
+  messagingSenderId: "107311887531",
+  appId: "1:107311887531:web:9b67ea17fd5bd803f233ee"
+};
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+const alertHistRef = db.ref('/tempAlertHistory');           // 요약만 (건수/긴급) - 항상 전체 로딩
+const alertHistDetailRef = db.ref('/tempAlertHistoryDetail'); // 기기별 상세(근거/제어) - 클릭 시에만 불러옴
+const alertSettingsRef = db.ref('/tempAlertSettings');
+const commentsRef = db.ref('/tempAlertComments');
+const commentLogRef = db.ref('/tempAlertCommentLog');
+const deviceStatusRef = db.ref('/tempAlertDeviceStatus'); // 기기별 "정상 처리" 상태 (기간 포함)
+const deviceActionRef = db.ref('/tempAlertDeviceAction'); // 기기별 조치 상태 (미확인/확인 중/매장 연락/출동 요청/조치 완료)
+const actionLogRef = db.ref('/tempAlertActionLog');       // 조치 상태 변경 이력
+const keyAliasRef = db.ref('/tempAlertKeyAlias');         // 예전 키(매장명+위치) → 새 키(storeId+sensorId) 연결표
+
+let state = {
+  settings: { channel:'C0BRL7W5P1B', brands:[], stores:[] },
+  current: null,   // 대시보드에 표시 중인 "조회 날짜" 누적 결과 (mergeStoresForDate로 생성)
+  dashDate: null,  // 대시보드에서 현재 조회 중인 날짜 (YYYY-MM-DD)
+  history: {},     // key: 'YYYY-MM-DD HHmm' -> {date,hour,summary,stores(경량: name/brand/count/urgent)}
+  historyDetail: {}, // key -> {stores: [{name,brand,sensors:[...]}]}  (클릭해서 펼칠 때만 불러와 캐시)
+  comments: {},    // key: 'store__location' -> {text, updatedAt}  (현재 코멘트)
+  commentLog: {},  // key: 'store__location' -> [{text, updatedAt}, ...] (코멘트 변경 이력)
+  deviceStatus: {}, // key -> {status:'normal'|'unresolved', scope, from, until, updatedAt, by}
+  deviceAction: {}, // key -> {status, updatedAt, by, store, location}
+  actionLog: {},    // key -> [{status, at, by}]
+  keyAlias: {},     // legacyKey -> 'sid_<storeId>_<sensorId>'
+  openStores: new Set(), closedBrands: new Set(), // 다시 그려도 펼침 상태 유지
+  openHist: new Set(), histLoading: new Set()      // 기기별 30일 이력 패널
+};
+let detailVersion = 0; // historyDetail 내용이 바뀔 때마다 증가 (기기 이력 인덱스 캐시 무효화용)
+
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escAttr(s){return escHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+function switchTab(t, el){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('tab-'+t).classList.add('active');
+  el.classList.add('active');
+  if(t==='history'){renderHistoryList();populateTrendSuggestions();renderTrend();renderCommentHistory();renderDeviceHistoryResult();}
+}
+
+// ---------- 날짜/시각 유틸 ----------
+function kstNow(){
+  // 이 브라우저의 로컬시간을 그대로 사용 (한국에서 쓰는 걸 전제)
+  return new Date();
+}
+function pad2(n){return String(n).padStart(2,'0');}
+function defaultDateHour(){
+  const d = kstNow();
+  return { date: d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()), hour: pad2(d.getHours())+'00' };
+}
+
+function populateHourSelect(){
+  const sel = document.getElementById('rpt-hour');
+  if(!sel) return;
+  sel.innerHTML = Array.from({length:24},(_,h)=>{
+    const v = pad2(h)+'00';
+    return `<option value="${v}">${pad2(h)}:00</option>`;
+  }).join('');
+}
+
+// "이상온도 레포트 09_03 11~12시.html" 같은 파일명에서 날짜/시각을 추출
+// 월_일 뒤에 "N~M시" 패턴이 있으면 뒤쪽 시각(M)을 리포트 기준 시각으로 사용 (12:00 리포트가 파일명엔 "1200-60m.html"과 대응)
+function parseDateHourFromFilename(name){
+  const m = name.match(/(\d{1,2})[_\-\.](\d{1,2})\D{0,8}(\d{1,2})\s*[~\-]\s*(\d{1,2})\s*시/);
+  if(!m) return null;
+  const month = m[1].padStart(2,'0');
+  const day = m[2].padStart(2,'0');
+  const endHour = m[4].padStart(2,'0');
+  const yearGuess = (document.getElementById('rpt-date').value||'').slice(0,4) || String(kstNow().getFullYear());
+  return { date: `${yearGuess}-${month}-${day}`, hour: endHour+'00' };
+}
+
+function readFileAsText(file){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = e=>resolve(e.target.result);
+    r.onerror = ()=>reject(new Error('읽기 실패'));
+    r.readAsText(file,'utf-8');
+  });
+}
+
+async function ingestFile(input){
+  const files = Array.from(input.files||[]);
+  if(!files.length) return;
+
+  if(files.length===1){
+    const file = files[0];
+    try{
+      const text = await readFileAsText(file);
+      const guessed = parseDateHourFromFilename(file.name);
+      const date = guessed?.date || document.getElementById('rpt-date').value || defaultDateHour().date;
+      const hour = guessed?.hour || document.getElementById('rpt-hour').value || defaultDateHour().hour;
+      if(guessed){ document.getElementById('rpt-date').value = date; document.getElementById('rpt-hour').value = hour; }
+      handleFetchedContent(text, date, hour, '(파일 업로드: '+file.name+')');
+    }catch(e){ setStatus('✗ 파일을 읽지 못했어요: '+file.name); }
+    input.value = '';
+    return;
+  }
+
+  // 파일 여러 개: 파일명에서 날짜/시각을 각각 추출해 한 번에 처리
+  setStatus(`⏳ ${files.length}개 파일 처리 중...`);
+  let ok=0; const fails=[]; const warns=[];
+  for(const file of files){
+    try{
+      const text = await readFileAsText(file);
+      const guessed = parseDateHourFromFilename(file.name);
+      if(!guessed){ fails.push(file.name+' (파일명에서 날짜/시각을 못 읽음)'); continue; }
+      const success = handleFetchedContent(text, guessed.date, guessed.hour, '(파일 업로드: '+file.name+')', true);
+      if(success){ ok++; if(lastParseWarning) warns.push(file.name+': '+lastParseWarning); }
+      else fails.push(file.name+' (매장 인식 실패)');
+    }catch(e){ fails.push(file.name+' (읽기 실패)'); }
+  }
+  setStatus(`✓ ${ok}개 파일 처리 완료${fails.length?`\n✗ 처리 못한 파일 ${fails.length}개: `+fails.join(', '):''}${warns.length?'\n'+warns.join('\n'):''}`);
+  if(ok>0){
+    document.getElementById('last-sync').textContent = `마지막 수집: 파일 ${ok}개 일괄 업로드`;
+  }
+  input.value = '';
+}
+
+function setStatus(msg){
+  document.getElementById('fetch-status').textContent = msg;
+}
+
+// ---------- 파싱 ----------
+// 실제 리포트 HTML 구조(2026-09-03 원본 확인 완료) 기준 파서
+// .statusbar .stat, .toc-list > (.toc-group[data-brand] | a.toc-item), section.block#s-N > article.sensor
+// 근거 dd 안에 들어있는 "컨트롤러/설정 온도/풍량/모드" 같은 표를 {headers, rows} 형태로 뽑아냄.
+// thead/tbody가 있으면 그걸 쓰고, 없으면 첫 번째 tr을 헤더로 취급한다.
+function parseControlTable(table){
+  let headerCells = Array.from(table.querySelectorAll('thead th'));
+  let bodyRows;
+  if(headerCells.length){
+    bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+  } else {
+    const allRows = Array.from(table.querySelectorAll('tr'));
+    if(!allRows.length) return null;
+    headerCells = Array.from(allRows[0].querySelectorAll('th,td'));
+    bodyRows = allRows.slice(1);
+  }
+  const headers = headerCells.map(c=>c.textContent.trim());
+  const rows = bodyRows.map(tr=>Array.from(tr.querySelectorAll('td,th')).map(td=>td.textContent.trim()));
+  if(!rows.length) return null;
+  return { headers, rows };
+}
+
+// 센서 위치 문자열을 "3F - 매장 (센서명: 1번 센서)" 형태로 통일해서 만든다.
+// 코멘트/정상 처리 상태가 이 문자열을 키로 쓰기 때문에, 리포트 디자인이 바뀌어도 형식이 같아야 기존 기록과 이어진다.
+//  - 구 형식: 카드 안 h3 에 "3F - 매장 (센서명: 1번 센서)" 전체가 들어있음
+//  - 신 형식(09/23~): 층·공간은 상위 section.space-group 의 h3(.space-floor/.space-name), 카드 안 h4 에는 "센서명: 1번 센서"만 있음
+function buildSensorLocation(art, basis){
+  const clean = t=>(t||'').replace(/⚠️/g,'').replace(/\s+/g,' ').trim();
+  const oldH3 = art.querySelector('.card-head h3');
+  if(oldH3 && clean(oldH3.textContent)) return clean(oldH3.textContent);
+
+  const group = art.closest('.space-group');
+  let floor = clean(group?.querySelector('.space-floor')?.textContent);
+  let space = clean(group?.querySelector('.space-name')?.textContent);
+  if(!space) space = clean(basis.space);
+  const h4 = art.querySelector('.card-head h4');
+  let sensorLabel = clean(h4?.textContent);
+  if(!sensorLabel && basis.sensor) sensorLabel = '센서명: '+basis.sensor;
+
+  const head = [floor, space].filter(Boolean).join(' - ');
+  if(head && sensorLabel) return `${head} (${sensorLabel})`;
+  return head || sensorLabel || '';
+}
+
+function parseReportFromDom(rawHtml){
+  const doc = new DOMParser().parseFromString(rawHtml, 'text/html');
+
+  const summary = { title:'', stores:0, issues:0, urgent:0, physical:0, generatedAt:'' };
+  const titleEl = doc.querySelector('.rep-head h1') || doc.querySelector('h1');
+  if(titleEl) summary.title = titleEl.textContent.replace(/\s+/g,' ').trim();
+  doc.querySelectorAll('.statusbar .stat').forEach(stat=>{
+    const label = (stat.querySelector('span')?.textContent||'').trim();
+    const val = parseInt((stat.querySelector('strong')?.textContent||'').replace(/[^\d]/g,''),10)||0;
+    if(label.includes('이상 매장')) summary.stores = val;
+    else if(label.includes('이상 건수')) summary.issues = val;
+    else if(label.includes('긴급')) summary.urgent = val;
+    else if(label.includes('물리')) summary.physical = val;
+  });
+  const footerTxt = doc.querySelector('footer')?.textContent||'';
+  const mGen = footerTxt.match(/생성\s*([\d\-: ]+KST)/);
+  if(mGen) summary.generatedAt = mGen[1].trim();
+
+  function parseCount(smallText){
+    const cm = smallText.match(/(\d+)\s*건/);
+    const um = smallText.match(/⚠️\s*(\d+)/);
+    return { count: cm?+cm[1]:0, urgent: um?+um[1]:0 };
+  }
+
+  const stores = [];
+  const tocList = doc.querySelector('.toc-list');
+  if(tocList){
+    Array.from(tocList.children).forEach(child=>{
+      if(child.classList && child.classList.contains('toc-group')){
+        const brand = (child.getAttribute('data-brand')||child.querySelector('.toc-brand strong')?.textContent||'기타').trim();
+        child.querySelectorAll('a.toc-item').forEach(a=>{
+          const name = (a.getAttribute('data-name')||a.querySelector('strong')?.textContent||'').trim();
+          if(!name) return;
+          const {count,urgent} = parseCount(a.querySelector('small')?.textContent||'');
+          stores.push({ name, brand, count, urgent, href: a.getAttribute('href')||'' });
+        });
+      } else if(child.tagName==='A' && child.classList && child.classList.contains('toc-item')){
+        const name = (child.getAttribute('data-name')||child.querySelector('strong')?.textContent||'').trim();
+        if(!name) return;
+        const {count,urgent} = parseCount(child.querySelector('small')?.textContent||'');
+        stores.push({ name, brand:name, count, urgent, href: child.getAttribute('href')||'' });
+      }
+    });
+  }
+
+  // 상세 섹션(id="s-N")과 매장 매칭 + 센서별 구조화 데이터 추출
+  const blockByIdx = {};
+  doc.querySelectorAll('section.block[id^="s-"]').forEach(b=>{
+    const m = (b.id||'').match(/^s-(\d+)$/);
+    if(m) blockByIdx[+m[1]] = b;
+  });
+  stores.forEach((s,i)=>{
+    const hm = (s.href||'').match(/#s-(\d+)$/);
+    const idx = hm? +hm[1] : (i+1);
+    const block = blockByIdx[idx];
+    if(!block){ s.detail=''; s.sensors=[]; return; }
+    s.detail = block.textContent.replace(/\s+/g,' ').trim();
+    s.sensors = Array.from(block.querySelectorAll('article.sensor')).map(art=>{
+      // 리포트 원본 JSON(data-basis) — 화면 문구가 바뀌어도 값이 남아있어 보조 소스로 사용
+      let basis = {};
+      try{ basis = JSON.parse(art.getAttribute('data-basis')||'{}'); }catch(e){ basis = {}; }
+      const location = buildSensorLocation(art, basis);
+      const vtype = (art.querySelector('.vchip')?.textContent||'').trim();
+      const isUrgent = art.getAttribute('data-urgent')==='1' || art.classList.contains('sev-high');
+      const stat2 = {};
+      art.querySelectorAll('.stats .stat2').forEach(s2=>{
+        const label = (s2.querySelector('small')?.textContent||'').trim();
+        const val = (s2.querySelector('strong')?.textContent||'').trim();
+        if(label) stat2[label]=val;
+      });
+      const tailnote = (art.querySelector('.tailnote')?.textContent||'').trim();
+      const flow = Array.from(art.querySelectorAll('.flow .node')).map(nodeEl=>({
+        label: (nodeEl.querySelector('small')?.textContent||'').trim(),
+        val: (nodeEl.querySelector('b')?.textContent||'').trim()
+      }));
+      const meta = {};
+      let reasonControlTable = null;
+      art.querySelectorAll('dl.meta > div').forEach(d=>{
+        const dtEl = d.querySelector('dt');
+        const ddEl = d.querySelector('dd');
+        const dt = (dtEl?.textContent||'').trim();
+        if(!dt || !ddEl) return;
+        if(dt==='근거'){
+          // 근거 dd 안에 판정 시점의 컨트롤러 설정값 표가 함께 들어있는 경우, textContent로 이어붙이면
+          // 문장 뒤에 표 내용이 그대로 붙어버려 가독성이 떨어지므로 표를 분리해서 따로 보관한다.
+          const ddClone = ddEl.cloneNode(true);
+          const tbl = ddClone.querySelector('table');
+          if(tbl){
+            reasonControlTable = parseControlTable(tbl);
+            tbl.remove();
+          }
+          meta[dt] = ddClone.textContent.trim();
+        } else {
+          meta[dt] = ddEl.textContent.trim();
+        }
+      });
+      const knownKeys = ['근거','제어','참고','제어 변화','제어변화'];
+      const extra = Object.entries(meta).filter(([k])=>!knownKeys.includes(k)).map(([label,text])=>({label,text}));
+      // 근거 문구 끝에 붙는 "(11:34 판정)" 같은 실제 판정 시각을 별도 필드로 분리
+      const reasonRaw = meta['근거']||'';
+      const judgeMatch = reasonRaw.match(/\((\d{1,2}:\d{2})\s*판정(?:\s*기준)?\)\s*$/);
+      // 판정 시각은 원본 JSON(now)을 우선, 없으면 문구에서 추출
+      let judgedAt = '';
+      if(basis.now){
+        const nm = String(basis.now).match(/T(\d{2}:\d{2})/);
+        if(nm) judgedAt = nm[1];
+      }
+      if(!judgedAt && judgeMatch) judgedAt = judgeMatch[1];
+      const numOrNull = v=> (v===null || v===undefined || v==='' || isNaN(Number(v))) ? null : Number(v);
+      const diffNum = numOrNull(basis.diff_eff), targetNum = numOrNull(basis.target_eff);
+      const reasonClean = judgeMatch ? reasonRaw.slice(0, judgeMatch.index).trim() : reasonRaw;
+      return {
+        location, vtype, isUrgent, judgedAt,
+        // 기기 고유 식별자 (원본 JSON) — 매장명/센서명이 바뀌어도 같은 기기로 이어지게 하는 기준
+        storeId: numOrNull(basis.storeId), sensorId: numOrNull(basis.sensorId),
+        // 편차/설정온도는 부호·표기가 화면 문구에 맞춰져 있어 문구를 우선 쓰고, 문구가 비면 JSON 값으로 대체
+        deviation: stat2['평균 설정 온도 대비 편차'] || Object.entries(stat2).find(([k])=>k.includes('편차'))?.[1] || (diffNum!==null ? diffNum+'°C' : ''),
+        setTemp: stat2['평균 설정 온도'] || Object.entries(stat2).find(([k])=>k.includes('설정 온도'))?.[1] || (targetNum!==null ? targetNum+'°C' : ''),
+        current: stat2['현재 (12:00)']||Object.entries(stat2).find(([k])=>k.startsWith('현재'))?.[1]||'',
+        judgeCount: stat2['이상·의심 판정']||'',
+        tailnote, flow,
+        reason: reasonClean, control: meta['제어']||'', note: meta['참고']||'',
+        controlChanges: meta['제어 변화']||meta['제어변화']||'',
+        controlTable: reasonControlTable, // 근거 판정 시점의 컨트롤러별 설정온도/풍량/모드 표 (없으면 null)
+        extra // 근거/제어/참고/제어변화 외에 리포트에 새로 생긴 항목이 있으면 여기 담겨서 화면에 그대로 표시됨
+      };
+    });
+  });
+
+  return { summary, stores };
+}
+
+// 자동수집/파일업로드 실패 등으로 순수 텍스트(뷰-소스 복사 등)만 있을 때의 백업 파서
+function parseReportFromText(rawText){
+  const lines = rawText.split('\n').map(l=>l.trim()).filter(Boolean);
+  const fullText = lines.join('\n');
+  const summary = { title:'', stores:0, issues:0, urgent:0, physical:0, generatedAt:'' };
+  const mTitle = fullText.match(/이상온도\s*레포트\s*([\d\/~시\s]+)/); if(mTitle) summary.title = mTitle[0].trim();
+  const mStores = fullText.match(/이상\s*매장\s*(\d+)/); if(mStores) summary.stores = +mStores[1];
+  const mIssues = fullText.match(/이상\s*건수\s*(\d+)/); if(mIssues) summary.issues = +mIssues[1];
+  const mUrgent = fullText.match(/⚠️\s*긴급\s*(\d+)/); if(mUrgent) summary.urgent = +mUrgent[1];
+  const mPhys = fullText.match(/물리\s*조작\s*의심\s*(\d+)/); if(mPhys) summary.physical = +mPhys[1];
+  const mGen = fullText.match(/생성\s*([\d\-: ]+KST)/); if(mGen) summary.generatedAt = mGen[1].trim();
+
+  const brandHdrRe = /^(.+?)(\d+)\s*매장\s*[·∙]\s*(\d+)\s*건\s*[·∙]\s*⚠️\s*(\d+)⌄?$/;
+  const storeItemRe = /^(.+?)(\d+)\s*건(?:\s*[·∙]\s*⚠️\s*(\d+))?$/;
+  const stores = [];
+  let currentBrand = null;
+  lines.forEach(line=>{
+    const bm = line.match(brandHdrRe);
+    if(bm){ currentBrand = bm[1].trim(); return; }
+    const sm = line.match(storeItemRe);
+    if(sm){
+      const name = sm[1].trim();
+      if(!name) return;
+      stores.push({ name, brand: currentBrand||name, count:+sm[2], urgent: sm[3]?+sm[3]:0, sensors:[], detail:'' });
+    }
+  });
+  return { summary, stores };
+}
+
+function parseReport(rawText){
+  if(/<html[\s\S]*<\/html>/i.test(rawText) || /<section class="block"/i.test(rawText)){
+    return parseReportFromDom(rawText);
+  }
+  return parseReportFromText(rawText);
+}
+
+// 파싱 결과 점검: 리포트 디자인이 또 바뀌어서 핵심 값이 비는 경우를 바로 알려주기 위함
+let lastParseWarning = '';
+function checkParseQuality(parsed){
+  const issues = [];
+  let total=0, noLoc=0, noReason=0, noDev=0, noSensorStores=0;
+  parsed.stores.forEach(s=>{
+    if((s.count||0)>0 && !(s.sensors||[]).length) noSensorStores++;
+    (s.sensors||[]).forEach(sn=>{
+      total++;
+      if(!sn.location) noLoc++;
+      if(!sn.reason) noReason++;
+      if(!sn.deviation) noDev++;
+    });
+  });
+  if(noSensorStores) issues.push(`기기 상세를 못 읽은 매장 ${noSensorStores}곳`);
+  if(noLoc) issues.push(`기기명/위치 누락 ${noLoc}/${total}건`);
+  if(noReason) issues.push(`근거 누락 ${noReason}/${total}건`);
+  if(noDev) issues.push(`편차 누락 ${noDev}/${total}건`);
+  return issues.length ? '⚠ 리포트 형식이 바뀐 것 같아요 — '+issues.join(', ')+'. 이 파일을 보여주시면 파싱을 맞춰드릴게요.' : '';
+}
+
+function handleFetchedContent(text, date, hour, sourceUrl, silent){
+  let parsed;
+  try{
+    parsed = parseReport(text);
+  }catch(e){
+    if(!silent) setStatus('✗ 분석 중 오류가 발생했어요: '+e.message);
+    return false;
+  }
+  if(!parsed.stores.length){
+    if(!silent) setStatus('⚠ 매장 목록을 찾지 못했어요. 페이지 구조가 예상과 다를 수 있어요.\n스크린샷이나 이 텍스트를 다시 보여주시면 파싱 로직을 고쳐드릴게요.\n(가져온 소스: '+sourceUrl+')');
+    return false;
+  }
+  lastParseWarning = checkParseQuality(parsed);
+  const key = date+' '+hour;
+  const safeKey = safeKeyStr(key);
+
+  // 요약(가벼움, 항상 전체 로딩) - 건수/긴급 트렌드 검색에 필요한 만큼만
+  state.history[key] = {
+    date, hour, summary: parsed.summary,
+    stores: parsed.stores.map(s=>({name:s.name, brand:s.brand, count:s.count, urgent:s.urgent})),
+    fetchedAt: new Date().toISOString()
+  };
+  alertHistRef.child(safeKey).set(state.history[key]).catch(e=>console.error('히스토리 요약 저장 오류:',e));
+
+  // 상세(기기별 근거/제어, 무거움) - 클릭해서 펼칠 때만 불러오도록 별도 경로에 저장
+  const detailStores = parsed.stores.map(s=>({
+    name:s.name, brand:s.brand, count:s.count, urgent:s.urgent,
+    sensors:(s.sensors||[]).map(sn=>({
+      location:sn.location, vtype:sn.vtype, isUrgent:sn.isUrgent, judgedAt:sn.judgedAt||'',
+      storeId: sn.storeId!=null ? sn.storeId : null, sensorId: sn.sensorId!=null ? sn.sensorId : null,
+      deviation:sn.deviation, setTemp:sn.setTemp, current:sn.current, judgeCount:sn.judgeCount,
+      tailnote:sn.tailnote, flow:sn.flow||[], reason:sn.reason, control:sn.control, note:sn.note, controlChanges:sn.controlChanges, controlTable:sn.controlTable||null, extra:sn.extra||[]
+    }))
+  }));
+  state.historyDetail[key] = { stores: detailStores }; // 방금 올린 건 바로 캐시해둠 (다시 안 받아도 되게)
+  detailVersion++;
+  registerAliases(detailStores);
+  alertHistDetailRef.child(safeKey).set({ stores: detailStores }).catch(e=>console.error('히스토리 상세 저장 오류:',e));
+
+  if(!silent){
+    document.getElementById('last-sync').textContent = `마지막 수집: ${date} ${hour.slice(0,2)}:${hour.slice(2)} · ${parsed.summary.title||''}`;
+    setStatus('✓ 불러오기 완료 · 매장 '+parsed.stores.length+'개 인식됨'+(lastParseWarning?'\n'+lastParseWarning:''));
+  }
+  document.getElementById('dash-content').style.display='block';
+  document.getElementById('dash-date').value = date;
+  refreshDashCurrentView();
+  return true;
+}
+
+// ---------- 대시보드 당일 누적 ----------
+function fmtHour(h){ return (h||'').slice(0,2)+':'+(h||'').slice(2); }
+
+// ---------- 기기 식별 / 상태 모델 ----------
+function legacyDeviceKey(storeName, location){ return safeKeyStr(storeName)+'__'+safeKeyStr(location); }
+function deviceKey(storeName, location){ return legacyDeviceKey(storeName, location); } // 하위호환용 이름
+
+// 기기 고유 키: 원본 데이터의 storeId+sensorId → 매장명·센서명이 바뀌어도 같은 기기로 유지된다.
+// 예전 버전으로 저장된 기록엔 ID가 없어서, 업로드 때 쌓아둔 연결표(예전 키 → 새 키)로 이어 붙이고, 그래도 없으면 예전 키를 그대로 쓴다.
+function canonicalKey(store, sn){
+  if(sn.sensorId!=null && sn.sensorId!==''){
+    return 'sensor_'+sn.sensorId; // sensorId는 전체 매장에서 고유값이라 단독으로 써도 안전 (storeId가 빠진 리포트가 섞여도 같은 키 유지)
+  }
+  const lk = legacyDeviceKey(store.name, sn.location);
+  return state.keyAlias[lk] || lk;
+}
+// 새 키 + 예전 키 (예전에 남긴 코멘트/상태도 함께 찾기 위함)
+function keysOf(dk, storeName, location){
+  const lk = legacyDeviceKey(storeName, location);
+  return dk===lk ? [dk] : [dk, lk];
+}
+function recByKeys(map, dk, storeName, location){
+  for(const k of keysOf(dk, storeName, location)){ if(map[k]) return map[k]; }
+  return null;
+}
+function logByKeys(logMap, dk, storeName, location){
+  const out = [];
+  keysOf(dk, storeName, location).forEach(k=>(logMap[k]||[]).forEach(e=>out.push({...e, _k:k})));
+  return out.sort((a,b)=>((a.updatedAt||a.at||'')).localeCompare(b.updatedAt||b.at||''));
+}
+function registerAliases(stores){
+  const add = {};
+  (stores||[]).forEach(s=>(s.sensors||[]).forEach(sn=>{
+    if(sn.sensorId==null || sn.sensorId==='' || !sn.location) return;
+    const lk = legacyDeviceKey(s.name, sn.location);
+    const ck = canonicalKey(s, sn);
+    if(state.keyAlias[lk]!==ck){ state.keyAlias[lk]=ck; add[lk]=ck; }
+  }));
+  if(Object.keys(add).length) keyAliasRef.update(add).catch(e=>console.error('기기 연결표 저장 오류:',e));
+}
+
+// ---------- 날짜 유틸 ----------
+function addDays(dateStr, n){
+  const d = new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+}
+function mmdd(dateStr){ return dateStr ? dateStr.slice(5).replace('-','/') : ''; }
+function fmtDT(iso){ try{ return new Date(iso).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return iso||''; } }
+
+// ---------- 정상 처리 (기간 포함) ----------
+// 예전 기록(기간 정보 없음)은 "해제할 때까지"로 취급
+function isNormalOn(rec, dateStr){
+  if(!rec || rec.status!=='normal') return false;
+  if(!dateStr) return true;
+  if(rec.from && dateStr < rec.from) return false;
+  if(rec.until && dateStr > rec.until) return false;
+  return true;
+}
+function normalScopeLabel(rec){
+  if(!rec) return '';
+  if(!rec.until) return rec.scope ? '해제할 때까지' : '기간 없음';
+  if(rec.from===rec.until) return mmdd(rec.until)+' 하루';
+  return '~'+mmdd(rec.until);
+}
+function deviceIsNormal(store, sn){
+  const dk = canonicalKey(store, sn);
+  return isNormalOn(recByKeys(state.deviceStatus, dk, store.name, sn.location), sn.reportDate||state.dashDate);
+}
+
+// ---------- 작성자 ----------
+let askedUserName = false;
+function getUserName(ask){
+  let n = '';
+  try{ n = localStorage.getItem('tempAlertUserName')||''; }catch(e){}
+  if(!n && ask && !askedUserName){
+    askedUserName = true;
+    n = (prompt('기록에 남길 이름을 입력해주세요 (설정 탭에서 바꿀 수 있어요)')||'').trim();
+    if(n){ try{ localStorage.setItem('tempAlertUserName', n); }catch(e){} }
+  }
+  return n;
+}
+
+// ---------- 조치 상태 ----------
+const ACTION_LABELS = { '':'미확인', checking:'확인 중', contacted:'매장 연락', dispatch:'출동 요청', done:'조치 완료' };
+const ACTION_COLORS = { '':'var(--text2)', checking:'var(--info)', contacted:'var(--info)', dispatch:'var(--warn)', done:'var(--ok)' };
+function actionGroup(status){ return !status ? 'none' : (status==='done' ? 'done' : 'progress'); }
+// "조치 완료"로 바꾼 뒤에 다시 감지됐는지 (가장 최근 감지 시각 > 완료 처리 시각)
+function isReoccurred(sn, act){
+  if(!act || act.status!=='done' || !act.updatedAt) return false;
+  const date = sn.reportDate || state.dashDate;
+  if(!date) return false;
+  const t = (sn.judgedAt || fmtHour(sn.reportHour) || '00:00').replace(/^24:/,'23:59').slice(0,5);
+  return new Date(date+'T'+t+':00').getTime() > new Date(act.updatedAt).getTime();
+}
+
+// ---------- 집계 ----------
+// 정상 처리된 기기를 제외한 실질 건수/긴급 수 (상세가 없으면 리포트 원본 건수 사용)
+function computeStoreStats(store){
+  if(store.sensors && store.sensors.length){
+    const active = store.sensors.filter(sn=>!deviceIsNormal(store, sn));
+    return { count: active.length, urgent: active.filter(sn=>sn.isUrgent).length, hidden: store.sensors.length-active.length };
+  }
+  return { count: store.count||0, urgent: store.urgent||0, hidden: 0 };
+}
+
+// 선택한 날짜의 모든 시간대 리포트를 매장 단위로 합치되, 같은 기기는 한 건으로 묶는다.
+// 카드에는 가장 최근 시간대의 내용을 보여주고, 몇 번·어느 시간대에 잡혔는지는 occurrences에 남긴다.
+// 긴급은 그날 한 번이라도 긴급이었으면 긴급으로 센다.
+function mergeStoresForDate(date){
+  const keys = Object.keys(state.history).filter(k=>state.history[k].date===date).sort();
+  const merged = {};
+  keys.forEach(k=>{
+    const h = state.history[k];
+    const detail = state.historyDetail[k];
+    const storesSrc = (detail && detail.stores && detail.stores.length) ? detail.stores : (h.stores||[]).map(s=>({...s, sensors:[]}));
+    storesSrc.forEach(s=>{
+      const mk = s.brand+'__'+s.name;
+      if(!merged[mk]) merged[mk] = { name:s.name, brand:s.brand, devMap:{}, order:[], fbCount:0, fbUrgent:0 };
+      const m = merged[mk];
+      if(!(s.sensors||[]).length){ m.fbCount = Math.max(m.fbCount, s.count||0); m.fbUrgent = Math.max(m.fbUrgent, s.urgent||0); }
+      (s.sensors||[]).forEach(sn=>{
+        const dk = canonicalKey(s, sn);
+        const occ = { reportHour:h.hour, judgedAt:sn.judgedAt||'', deviation:sn.deviation||'', isUrgent:!!sn.isUrgent, vtype:sn.vtype||'' };
+        const prev = m.devMap[dk];
+        if(!prev){
+          m.order.push(dk);
+          m.devMap[dk] = { ...sn, reportHour:h.hour, reportDate:date, occurrences:[occ] };
+        } else {
+          m.devMap[dk] = { ...sn, reportHour:h.hour, reportDate:date, occurrences:prev.occurrences.concat([occ]), isUrgent: prev.isUrgent || !!sn.isUrgent };
+        }
+      });
+    });
+  });
+  return Object.values(merged).map(m=>{
+    const store = { name:m.name, brand:m.brand, sensors:m.order.map(k=>m.devMap[k]) };
+    if(!store.sensors.length){ store.count = m.fbCount; store.urgent = m.fbUrgent; }
+    return { ...store, ...computeStoreStats(store) };
+  });
+}
+
+// ---------- 기기별 이력 인덱스 ----------
+let devIndexCache = { sig:'', map:{} };
+function getDeviceIndex(){
+  const sig = Object.keys(state.historyDetail).length+'_'+Object.keys(state.history).length+'_'+detailVersion+'_'+Object.keys(state.keyAlias).length;
+  if(devIndexCache.sig===sig) return devIndexCache.map;
+  const map = {};
+  Object.entries(state.historyDetail).forEach(([k,d])=>{
+    const h = state.history[k];
+    if(!h || !d || !d.stores) return;
+    d.stores.forEach(s=>(s.sensors||[]).forEach(sn=>{
+      const dk = canonicalKey(s, sn);
+      (map[dk] = map[dk] || []).push({
+        date:h.date, hour:h.hour, judgedAt:sn.judgedAt||'', deviation:sn.deviation||'', vtype:sn.vtype||'',
+        isUrgent:!!sn.isUrgent, reason:sn.reason||'', tailnote:sn.tailnote||'', store:s.name, brand:s.brand, location:sn.location||''
+      });
+    }));
+  });
+  Object.values(map).forEach(a=>a.sort((x,y)=>(x.date+x.hour).localeCompare(y.date+y.hour)));
+  devIndexCache = { sig, map };
+  return map;
+}
+function deviceOccurrences(dk, endDate, days){
+  if(!endDate) return [];
+  const start = addDays(endDate, -(days-1));
+  return (getDeviceIndex()[dk]||[]).filter(o=>o.date>=start && o.date<=endDate);
+}
+// 기간 안의 리포트 상세를 아직 안 받았으면 받아온다. 새로 받은 게 있으면 true
+async function ensureDetailRange(endDate, days){
+  if(!endDate) return false;
+  const start = addDays(endDate, -(days-1));
+  const keys = Object.keys(state.history).filter(k=>{
+    const d = state.history[k].date;
+    return d>=start && d<=endDate && !state.historyDetail[k];
+  });
+  if(!keys.length) return false;
+  await Promise.all(keys.map(async k=>{
+    try{
+      const snap = await alertHistDetailRef.child(safeKeyStr(k)).once('value');
+      state.historyDetail[k] = snap.val() || { stores: [] };
+    }catch(e){ state.historyDetail[k] = { stores: [] }; }
+  }));
+  return true;
+}
+
+const openDetailKeys = new Set();
+function onDetailsToggle(el){ const k = el.dataset.dkey; if(!k) return; if(el.open) openDetailKeys.add(k); else openDetailKeys.delete(k); }
+function detailsAttr(k){ return `data-dkey="${escAttr(k)}" ontoggle="onDetailsToggle(this)" ${openDetailKeys.has(k)?'open':''}`; }
+
+function isEditingComment(){
+  const a = document.activeElement;
+  return !!(a && a.classList && a.classList.contains('comment-box'));
+}
+// 상태가 바뀐 뒤 보이는 화면을 다시 그림 (코멘트 입력 중이면 커서가 튀지 않게 건너뜀)
+let pendingRerender = false;
+function rerenderViews(force){
+  if(!force && isEditingComment()){ pendingRerender = true; return; }
+  pendingRerender = false;
+  if(state.dashDate && state.current) refreshDashCurrentView();
+  const histTab = document.getElementById('tab-history');
+  if(histTab && histTab.classList.contains('active')){ renderHistoryList(); renderTrend(); renderDeviceHistoryResult(); }
+}
+
+// 아직 상세(historyDetail)를 안 불러온 시간대가 있으면 이 시점에 한꺼번에 가져옴
+async function ensureDateDetailLoaded(date){
+  const keys = Object.keys(state.history).filter(k=>state.history[k].date===date);
+  const missing = keys.filter(k=>!state.historyDetail[k]);
+  if(!missing.length) return;
+  await Promise.all(missing.map(async k=>{
+    try{
+      const snap = await alertHistDetailRef.child(safeKeyStr(k)).once('value');
+      state.historyDetail[k] = snap.val() || { stores: [] };
+    }catch(e){ state.historyDetail[k] = { stores: [] }; }
+  }));
+}
+
+// 이전 버전 파서로 저장돼서 기기명이 비어있는 시간대가 있는지 점검 → 재업로드 안내
+function findStaleHours(date, onlyHour){
+  return Object.keys(state.history)
+    .filter(k=>state.history[k].date===date && (!onlyHour || state.history[k].hour===onlyHour))
+    .filter(k=>{
+      const d = state.historyDetail[k];
+      if(!d || !d.stores) return false;
+      return d.stores.some(st=>(st.count||0)>0 && (!(st.sensors||[]).length || st.sensors.some(sn=>!sn.location)));
+    })
+    .map(k=>state.history[k].hour).sort();
+}
+function renderStaleNotice(date, onlyHour){
+  const el = document.getElementById('dash-stale-notice');
+  if(!el) return;
+  const hours = findStaleHours(date, onlyHour);
+  if(!hours.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='block';
+  el.innerHTML = `⚠ <b>${escHtml(date)} ${hours.map(fmtHour).join(', ')} 리포트</b>는 예전 버전으로 저장돼서 기기명이 비어 있어요.<br>`+
+    `해당 시간대 HTML 파일을 다시 업로드하면 새 형식으로 덮어써집니다 (중복으로 쌓이지 않아요).`;
+}
+
+async function refreshDashboardForDate(date){
+  if(!date) return;
+  state.dashDate = date;
+  await ensureDateDetailLoaded(date);
+  const stores = mergeStoresForDate(date);
+  const totalIssues = stores.reduce((a,s)=>a+s.count,0);
+  const totalUrgent = stores.reduce((a,s)=>a+s.urgent,0);
+  const activeStores = stores.filter(s=>s.count>0).length;
+  const hoursToday = Object.keys(state.history).filter(k=>state.history[k].date===date).map(k=>state.history[k].hour).sort();
+  state.current = {
+    mode: 'daily',
+    summary: {
+      title: date+' 누적 (' + hoursToday.map(fmtHour).join(', ') + ' 리포트)',
+      stores: activeStores, issues: totalIssues, urgent: totalUrgent, physical: 0,
+      hidden: stores.reduce((a,s)=>a+(s.hidden||0),0)
+    },
+    stores
+  };
+  document.getElementById('dash-content').style.display='block';
+  renderStaleNotice(date);
+  renderDash();
+  preloadRecurrence(date);
+}
+
+// 기기 카드의 "최근 7일 N회" 배지를 위해 지난 7일치 상세를 미리 받아두고, 새로 받은 게 있으면 다시 그림
+function preloadRecurrence(date){
+  ensureDetailRange(date, 7).then(changed=>{
+    if(changed && state.dashDate===date && !isEditingComment()) renderDash();
+  }).catch(()=>{});
+}
+
+// 선택한 시간대 하나만의 리포트를 보여줌 (일별 통합과 반대되는 뷰)
+function buildStoresForHour(date, hour){
+  const key = date+' '+hour;
+  const h = state.history[key];
+  if(!h) return [];
+  const detail = state.historyDetail[key];
+  const storesSrc = (detail && detail.stores && detail.stores.length) ? detail.stores : (h.stores||[]).map(s=>({...s, sensors:[]}));
+  return storesSrc.map(s=>{
+    const sensors = (s.sensors||[]).map(sn=>({ ...sn, reportHour: hour, reportDate: date,
+      occurrences:[{ reportHour:hour, judgedAt:sn.judgedAt||'', deviation:sn.deviation||'', isUrgent:!!sn.isUrgent, vtype:sn.vtype||'' }] }));
+    const store = { ...s, sensors };
+    return { ...store, ...computeStoreStats(store) };
+  });
+}
+
+async function refreshDashboardForHour(date, hour){
+  state.dashDate = date;
+  await ensureDateDetailLoaded(date);
+  const stores = buildStoresForHour(date, hour);
+  const totalIssues = stores.reduce((a,s)=>a+s.count,0);
+  const totalUrgent = stores.reduce((a,s)=>a+s.urgent,0);
+  const activeStores = stores.filter(s=>s.count>0).length;
+  state.current = {
+    mode: 'hourly',
+    summary: { title: date+' '+fmtHour(hour)+' 리포트', stores: activeStores, issues: totalIssues, urgent: totalUrgent, physical: 0,
+      hidden: stores.reduce((a,s)=>a+(s.hidden||0),0) },
+    stores
+  };
+  document.getElementById('dash-content').style.display='block';
+  renderStaleNotice(date, hour);
+  renderDash();
+  preloadRecurrence(date);
+}
+
+let dashMode = 'daily'; // 'daily' | 'hourly'
+
+function populateDashHourSelect(date){
+  const sel = document.getElementById('dash-hour');
+  if(!sel) return [];
+  const hours = Object.keys(state.history).filter(k=>state.history[k].date===date).map(k=>state.history[k].hour).sort();
+  const prevVal = sel.value;
+  sel.innerHTML = hours.map(h=>`<option value="${h}">${fmtHour(h)} 리포트</option>`).join('');
+  sel.value = hours.includes(prevVal) ? prevVal : (hours[hours.length-1]||'');
+  return hours;
+}
+
+function setDashMode(mode){
+  dashMode = mode;
+  document.getElementById('mode-daily').classList.toggle('btn-primary', mode==='daily');
+  document.getElementById('mode-hourly').classList.toggle('btn-primary', mode==='hourly');
+  document.getElementById('dash-hour-wrap').style.display = mode==='hourly' ? 'inline-flex' : 'none';
+  refreshDashCurrentView();
+}
+
+// 현재 선택된 날짜/모드(일별 통합 또는 시간대별)에 맞춰 대시보드를 다시 그림.
+// 파일 업로드 직후, 날짜 변경, 정상 처리 토글 등 대시보드가 갱신돼야 하는 모든 지점에서 이 함수를 호출한다.
+function refreshDashCurrentView(){
+  const date = document.getElementById('dash-date').value;
+  if(!date) return;
+  const hasData = Object.values(state.history).some(h=>h.date===date);
+  if(!hasData){
+    state.current = null;
+    document.getElementById('dash-content').style.display='none';
+    return;
+  }
+  if(dashMode==='daily'){
+    refreshDashboardForDate(date);
+  } else {
+    ensureDateDetailLoaded(date).then(()=>{
+      const hours = populateDashHourSelect(date);
+      const hour = document.getElementById('dash-hour').value || hours[hours.length-1];
+      if(hour) refreshDashboardForHour(date, hour);
+    });
+  }
+}
+
+function onDashDateChange(){
+  refreshDashCurrentView();
+}
+
+function onDashHourChange(){
+  const date = document.getElementById('dash-date').value;
+  const hour = document.getElementById('dash-hour').value;
+  if(date && hour) refreshDashboardForHour(date, hour);
+}
+
+// ---------- 내보내기 ----------
+// 정상 처리된 기기는 두 내보내기 모두에서 제외 (기간이 지난 정상 처리는 다시 포함)
+function activeSensorRows(){
+  if(!state.current) return [];
+  const rows = [];
+  state.current.stores.forEach(s=>{
+    (s.sensors||[]).forEach(sn=>{
+      if(deviceIsNormal(s, sn)) return;
+      const dk = canonicalKey(s, sn);
+      rows.push({
+        store:s, sn, key:dk,
+        comment: recByKeys(state.comments, dk, s.name, sn.location),
+        action: recByKeys(state.deviceAction, dk, s.name, sn.location)
+      });
+    });
+  });
+  return rows;
+}
+
+function csvEscape(v){
+  return '"' + String(v==null?'':v).replace(/"/g,'""') + '"';
+}
+function occSummary(sn){
+  const occs = sn.occurrences||[];
+  return occs.map(o=>fmtHour(o.reportHour)+(o.judgedAt?`(${o.judgedAt})`:'')).join(', ');
+}
+
+function exportCsv(){
+  if(!state.current){ alert('먼저 대시보드에 리포트를 불러오세요.'); return; }
+  const header = ['조회 구간','브랜드','매장명','위치','심각도','긴급','편차','최근 판정시각','감지 횟수','감지 시간대(판정)','최근 7일 감지','현재 온도','근거','제어','조치 상태','완료 후 재발생','조치자','조치 시각','코멘트','코멘트 작성자'];
+  const lines = [header.map(csvEscape).join(',')];
+  activeSensorRows().forEach(({store:s, sn, key, comment, action})=>{
+    const occ7 = deviceOccurrences(key, sn.reportDate||state.dashDate, 7);
+    lines.push([
+      state.current.summary.title, s.brand, s.name, sn.location, sn.vtype, sn.isUrgent?'Y':'', sn.deviation,
+      sn.judgedAt||'', (sn.occurrences||[]).length||1, occSummary(sn), occ7.length||1,
+      sn.current||'', sn.reason||'', sn.control||'',
+      action?(ACTION_LABELS[action.status||'']||''):'미확인', isReoccurred(sn, action)?'Y':'', action?action.by||'':'', action&&action.updatedAt?fmtDT(action.updatedAt):'',
+      comment?comment.text:'', comment?comment.by||'':''
+    ].map(csvEscape).join(','));
+  });
+  const csv = '\uFEFF' + lines.join('\r\n'); // BOM 포함: 엑셀에서 한글 깨짐 방지
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateForName = (state.dashDate||'export').replace(/-/g,'');
+  a.href = url;
+  a.download = `temp-alert-report_${dateForName}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function buildSlackReportText(){
+  if(!state.current) return '';
+  const c = state.current;
+  const lines = [];
+  const unit = c.mode==='daily' ? '이상 기기' : '이상 건수';
+  lines.push(`🌡️ 이상온도 보고 — ${c.summary.title}`);
+  lines.push(`이상 매장 ${c.summary.stores} · ${unit} ${c.summary.issues}${c.summary.urgent?` · ⚠️ 긴급 ${c.summary.urgent}`:''}${c.summary.hidden?` (정상 처리 ${c.summary.hidden}건 제외)`:''}`);
+  lines.push('');
+  const byStore = {};
+  activeSensorRows().forEach(r=>{
+    const k = r.store.brand+'__'+r.store.name;
+    (byStore[k] = byStore[k] || { store:r.store, rows:[] }).rows.push(r);
+  });
+  const groups = Object.values(byStore).sort((a,b)=>{
+    const au = a.rows.filter(r=>r.sn.isUrgent).length, bu = b.rows.filter(r=>r.sn.isUrgent).length;
+    if(au!==bu) return bu-au;
+    return b.rows.length-a.rows.length;
+  });
+  if(!groups.length){ lines.push('(보고할 이상 항목이 없어요 — 전부 정상 처리되었거나 이상 없음)'); return lines.join('\n'); }
+  groups.forEach(({store:s, rows})=>{
+    const urgentCnt = rows.filter(r=>r.sn.isUrgent).length;
+    lines.push(`[${s.brand}] ${s.name} (${rows.length}건${urgentCnt?` · ⚠️${urgentCnt}`:''})`);
+    rows.forEach(({sn, key, action})=>{
+      const occs = sn.occurrences||[];
+      const timeTag = occs.length>1 ? `${occs.length}회 감지: ${occSummary(sn)}`
+        : (sn.judgedAt ? sn.judgedAt+' 판정' : (sn.reportHour ? fmtHour(sn.reportHour)+' 리포트' : ''));
+      const occ7 = deviceOccurrences(key, sn.reportDate||state.dashDate, 7);
+      const days7 = new Set(occ7.map(o=>o.date)).size;
+      const recur = days7>=2 ? ` · 최근 7일 중 ${days7}일 감지` : '';
+      const act = action && action.status ? ` [${ACTION_LABELS[action.status]}${isReoccurred(sn, action)?' 후 재발생':''}]` : '';
+      lines.push(`- ${sn.location}${act}: 편차 ${sn.deviation||'-'}${timeTag?` (${timeTag}${recur})`:''} — ${sn.reason||sn.tailnote||'사유 미기재'}`);
+    });
+    lines.push('');
+  });
+  return lines.join('\n').trim();
+}
+
+async function copySlackReport(){
+  if(!state.current){ alert('먼저 대시보드에 리포트를 불러오세요.'); return; }
+  const text = buildSlackReportText();
+  const btn = document.getElementById('btn-slack-copy');
+  const orig = btn.textContent;
+  const flash = msg=>{ btn.textContent = msg; setTimeout(()=>btn.textContent=orig, 1500); };
+  try{
+    await navigator.clipboard.writeText(text);
+    flash('✓ 복사됨');
+  }catch(e){
+    // 클립보드 API를 못 쓰는 환경(오래된 브라우저, 권한 차단 등)을 위한 대체 경로
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      flash('✓ 복사됨');
+    }catch(e2){
+      alert('복사에 실패했어요. 아래 텍스트를 직접 선택해 복사해주세요.\n\n'+text);
+    }
+  }
+}
+
+// ---------- 관심 매장 판정 ----------
+function isWatched(store){
+  const brands = state.settings.brands||[];
+  const stores = state.settings.stores||[];
+  if(stores.includes(store.name)) return true;
+  return brands.some(b => b && (store.brand===b || store.brand.indexOf(b)===0 || store.name.indexOf(b)===0));
+}
+function isBrandWatched(brand){
+  return (state.settings.brands||[]).includes(brand);
+}
+
+function persistSettings(){
+  alertSettingsRef.set(state.settings).catch(e=>console.error('설정 저장 오류:',e));
+  localStorage.setItem('tempAlertSettings', JSON.stringify(state.settings));
+}
+
+function toggleWatchStore(name, ev){
+  ev.stopPropagation();
+  if(!state.settings.stores) state.settings.stores=[];
+  const idx = state.settings.stores.indexOf(name);
+  if(idx>=0) state.settings.stores.splice(idx,1);
+  else state.settings.stores.push(name);
+  persistSettings();
+  applySettingsToUI();
+  renderDash();
+}
+
+function toggleWatchBrand(brand, ev){
+  ev.stopPropagation();
+  if(!state.settings.brands) state.settings.brands=[];
+  const idx = state.settings.brands.indexOf(brand);
+  if(idx>=0) state.settings.brands.splice(idx,1);
+  else state.settings.brands.push(brand);
+  persistSettings();
+  applySettingsToUI();
+  renderDash();
+}
+
+function flushPendingRerender(){ if(pendingRerender && !isEditingComment()) rerenderViews(); }
+function saveCommentFromBox(el){
+  setTimeout(flushPendingRerender, 0); // 입력 중 다른 사람이 바꾼 상태가 있으면 입력이 끝난 뒤 반영
+  const key = el.dataset.key, text = el.value;
+  const prev = state.comments[key] || recByKeys(state.comments, key, el.dataset.store, el.dataset.loc);
+  if((prev ? prev.text : '') === text) return; // 변경 없으면 저장 생략
+  const by = text.trim() ? getUserName(true) : getUserName(false);
+  const updatedAt = new Date().toISOString();
+  const rec = { text, updatedAt, by: by||'', store: el.dataset.store||'', location: el.dataset.loc||'' };
+  state.comments[key] = rec;
+  commentsRef.child(key).set(rec).catch(e=>console.error('코멘트 저장 오류:',e));
+  if(text.trim()){
+    const own = state.commentLog[key]||[];
+    const last = own[own.length-1];
+    const RECENT_MS = 5*60*1000; // 같은 사람이 5분 이내 다시 고치면(오타 수정 등) 새 기록을 쌓지 않고 방금 기록을 덮어씀
+    if(last && last.id && (last.by||'')===(by||'') && (Date.now()-new Date(last.updatedAt).getTime()) < RECENT_MS){
+      commentLogRef.child(key).child(last.id).set(rec).catch(e=>console.error('코멘트 기록 저장 오류:',e));
+    } else {
+      commentLogRef.child(key).push(rec).catch(e=>console.error('코멘트 기록 저장 오류:',e));
+    }
+  }
+}
+
+// 코멘트 기록 중 특정 한 줄만 삭제
+function deleteCommentLogEntry(btn, ev){
+  if(ev) ev.stopPropagation();
+  const key = btn.dataset.k, id = btn.dataset.id;
+  if(!confirm('이 코멘트 기록을 삭제할까요?')) return;
+  commentLogRef.child(key).child(id).remove().catch(e=>console.error('코멘트 기록 삭제 오류:',e));
+  if(state.commentLog[key]) state.commentLog[key] = state.commentLog[key].filter(e=>e.id!==id);
+  rerenderViews(true);
+}
+
+// 정상 처리: 기간을 골라서 지정 (하루 / 7일 / 30일 / 해제할 때까지). 기간이 지나면 자동으로 다시 집계에 들어온다.
+function setDeviceNormal(sel){
+  const scope = sel.value;
+  if(!scope) return;
+  const key = sel.dataset.key;
+  const from = sel.dataset.date || state.dashDate || defaultDateHour().date;
+  const until = scope==='day' ? from : scope==='7d' ? addDays(from,6) : scope==='30d' ? addDays(from,29) : null;
+  const rec = { status:'normal', scope, from, until, updatedAt:new Date().toISOString(), by:getUserName(true)||'' };
+  state.deviceStatus[key] = rec;
+  deviceStatusRef.child(key).set(rec).catch(e=>console.error('정상 처리 저장 오류:',e));
+  rerenderViews(true);
+}
+function clearDeviceNormal(btn, ev){
+  if(ev) ev.stopPropagation();
+  const key = btn.dataset.key;
+  const rec = { status:'unresolved', updatedAt:new Date().toISOString(), by:getUserName(false)||'' };
+  state.deviceStatus[key] = rec; // 새 키에 '해제'를 써두면 예전 키의 정상 처리보다 우선 적용됨
+  deviceStatusRef.child(key).set(rec).catch(e=>console.error('정상 처리 해제 오류:',e));
+  rerenderViews(true);
+}
+
+// 조치 상태 변경 + 이력 기록
+function setDeviceAction(sel){
+  const key = sel.dataset.key, status = sel.value;
+  const by = getUserName(true)||'';
+  const at = new Date().toISOString();
+  const rec = { status, updatedAt:at, by, store:sel.dataset.store||'', location:sel.dataset.loc||'' };
+  state.deviceAction[key] = rec;
+  deviceActionRef.child(key).set(rec).catch(e=>console.error('조치 상태 저장 오류:',e));
+  actionLogRef.child(key).push({ status, at, by }).catch(e=>console.error('조치 기록 저장 오류:',e));
+  rerenderViews(true);
+}
+
+// 코멘트 히스토리 검색: 새 기록엔 매장명/위치가 함께 저장되고, 예전 기록은 키(매장명__위치)에서 이름을 읽는다
+function renderCommentHistory(){
+  const q = (document.getElementById('comment-search').value||'').trim();
+  const cont = document.getElementById('comment-hist-result');
+  if(!q){ cont.innerHTML='<div class="empty">매장명을 입력하면 그 매장에 남긴 코멘트 기록을 보여드려요</div>'; return; }
+  const qSafe = safeKeyStr(q);
+  const rows = [];
+  Object.entries(state.commentLog).forEach(([k, list])=>{
+    (list||[]).forEach(e=>{
+      const hit = (e.store && (e.store.includes(q) || (e.location||'').includes(q))) || k.includes(qSafe);
+      if(!hit) return;
+      let label;
+      if(e.store) label = `${e.store} · ${e.location||''}`;
+      else { const parts = k.split('__'); label = parts.length>1 ? `${parts[0].replace(/_/g,' ')} · ${parts[1].replace(/_/g,' ')}` : k.replace(/_/g,' '); }
+      rows.push({ label, text:e.text, updatedAt:e.updatedAt, by:e.by||'' });
+    });
+  });
+  if(!rows.length){ cont.innerHTML='<div class="empty">해당 매장에 남긴 코멘트가 없어요</div>'; return; }
+  rows.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  cont.innerHTML = rows.slice(0,100).map(r=>`<div class="hist-row" style="align-items:flex-start">
+      <span style="width:150px;color:var(--text3);font-size:11px;flex-shrink:0">${escHtml(new Date(r.updatedAt).toLocaleString('ko-KR'))}${r.by?'<br>'+escHtml(r.by):''}</span>
+      <span style="width:220px;font-weight:500;flex-shrink:0">${escHtml(r.label)}</span>
+      <span>${escHtml(r.text)}</span>
+    </div>`).join('');
+}
+
+// ---------- 렌더 ----------
+let renderedStores = {}; // 마지막으로 그린 매장 (필터 반영본) — 펼칠 때 같은 내용을 쓰기 위함
+function renderDash(){
+  if(!state.current) return;
+  const q = (document.getElementById('store-search').value||'').trim();
+  const watchOnly = document.getElementById('watch-only').checked;
+  const urgentOnly = document.getElementById('urgent-only').checked;
+  const actFilter = document.getElementById('action-filter')?.value || 'all';
+
+  const sm = state.current.summary;
+  document.getElementById('s-stores').textContent = sm.stores;
+  document.getElementById('s-issues').textContent = sm.issues;
+  document.getElementById('s-urgent').textContent = sm.urgent;
+  document.getElementById('s-watched').textContent = state.current.stores.filter(s=>s.count>0 && isWatched(s)).length;
+  document.getElementById('s-issues-label').textContent = state.current.mode==='daily' ? '이상 기기 (중복 제외)' : '이상 건수';
+  document.getElementById('s-hidden').textContent = sm.hidden ? `· 정상 처리 ${sm.hidden} 제외` : '';
+
+  let list = state.current.stores.slice();
+  if(q) list = list.filter(s=> s.name.includes(q) || s.brand.includes(q));
+  if(watchOnly) list = list.filter(isWatched);
+  if(urgentOnly) list = list.filter(s=>s.urgent>0);
+  if(actFilter!=='all'){
+    // 조치 상태 필터: 해당 상태인 기기만 남기고, 기기가 하나도 없는 매장은 뺀다
+    list = list.map(s=>{
+      if(!(s.sensors||[]).length) return null;
+      const sensors = s.sensors.filter(sn=>{
+        const dk = canonicalKey(s, sn);
+        const act = recByKeys(state.deviceAction, dk, s.name, sn.location);
+        return actionGroup(act?act.status:'')===actFilter;
+      });
+      if(!sensors.length) return null;
+      const fs = { ...s, sensors };
+      return { ...fs, ...computeStoreStats(fs) };
+    }).filter(Boolean);
+  }
+
+  const byBrand = {};
+  list.forEach(s=>{ (byBrand[s.brand]=byBrand[s.brand]||[]).push(s); });
+  const brandNames = Object.keys(byBrand).sort((a,b)=>{
+    const au=byBrand[a].some(s=>s.urgent>0), bu=byBrand[b].some(s=>s.urgent>0);
+    if(au!==bu) return au?-1:1;
+    return a.localeCompare(b,'ko');
+  });
+
+  const cont = document.getElementById('store-groups');
+  renderedStores = {};
+  if(!brandNames.length){ cont.innerHTML = '<div class="empty">조건에 맞는 매장이 없습니다</div>'; return; }
+
+  cont.innerHTML = brandNames.map(brand=>{
+    const items = byBrand[brand].sort((a,b)=>b.urgent-a.urgent || b.count-a.count);
+    const urgentCnt = items.filter(s=>s.urgent>0).length;
+    const safe = 'b_'+safeKeyStr(brand);
+    const brandOpen = !state.closedBrands.has(safe);
+    const rows = items.map(s=>{
+      const sid = 'st_'+safeKeyStr(s.brand+'__'+s.name);
+      renderedStores[sid] = s;
+      const open = state.openStores.has(sid);
+      const watched = isWatched(s);
+      const hiddenTxt = s.hidden ? `<span style="font-size:11px;color:var(--text3)">정상 처리 ${s.hidden}</span>` : '';
+      return `<div class="store-row" data-sid="${escAttr(sid)}" onclick="toggleDetail(this.dataset.sid)">
+        <span class="watch-star" data-name="${escAttr(s.name)}" onclick="toggleWatchStore(this.dataset.name,event)" title="관심 매장 등록/해제">${watched?'⭐':'☆'}</span>
+        <span class="store-name">${escHtml(s.name)}</span>
+        ${hiddenTxt}
+        <span style="font-size:12px;color:var(--text2)">${s.count}건</span>
+        ${s.urgent>0?`<span class="badge badge-danger">⚠️ ${s.urgent}</span>`:''}
+      </div>
+      <div class="store-detail ${open?'open':''}" id="detail-${escAttr(sid)}">${open?renderSensorDetail(s):''}</div>`;
+    }).join('');
+    return `<div class="brand-group">
+      <div class="brand-head" data-safe="${escAttr(safe)}" onclick="toggleBrandGroup(this.dataset.safe)">
+        <span class="chevron ${brandOpen?'open':''}" id="chev-${escAttr(safe)}">▶</span>
+        <span class="watch-star" data-brand="${escAttr(brand)}" onclick="toggleWatchBrand(this.dataset.brand,event)" title="브랜드 전체 관심 등록/해제">${isBrandWatched(brand)?'⭐':'☆'}</span>
+        <span class="brand-name">${escHtml(brand)}</span>
+        <span class="brand-meta">${items.length}매장${urgentCnt?` · ⚠️ ${urgentCnt}`:''}</span>
+      </div>
+      <div class="store-list ${brandOpen?'open':''}" id="list-${escAttr(safe)}">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function safeKeyStr(s){ return String(s||'').replace(/[^a-zA-Z0-9가-힣]/g,'_'); }
+
+function renderSensorDetail(s){
+  if(!s.sensors || !s.sensors.length){
+    return `<div style="white-space:pre-wrap">${escHtml(s.detail||'상세 원문을 찾지 못했어요.')}</div>`;
+  }
+  // 위치 문자열 앞부분의 "층 - 공간"(예: "4F - 매장 (센서명: 1번 센서)" → "4F - 매장")으로 그룹핑 (원본 리포트의 공간 묶음과 동일)
+  const floorOf = loc=>{
+    const head = (loc||'').split(' (')[0].trim();
+    return head || '위치 정보 없음';
+  };
+  const floors = {};
+  s.sensors.forEach(sn=>{ (floors[floorOf(sn.location)] = floors[floorOf(sn.location)] || []).push(sn); });
+  const floorNames = Object.keys(floors).sort((a,b)=>{
+    const an = parseInt(a), bn = parseInt(b);
+    if(!isNaN(an) && !isNaN(bn) && an!==bn) return an-bn;
+    return a.localeCompare(b,'ko');
+  });
+  return floorNames.map(fl=>`
+    <div style="margin-bottom:8px">
+      ${floorNames.length>1 ? `<div style="font-size:11px;font-weight:700;color:var(--text3);margin:6px 0 4px;padding-left:2px">🏢 ${escHtml(fl)}</div>` : ''}
+      ${floors[fl].map(sn=>renderOneSensorCard(s, sn)).join('')}
+    </div>`).join('');
+}
+
+function renderControlChanges(sn, dk){
+  if(!sn.controlChanges) return '';
+  // "·"는 이벤트 사이 구분자이면서 한 이벤트 안(켜짐 · 냉방 20도)에도 쓰이므로,
+  // 시각(HH:MM 또는 MM/DD HH:MM)이 뒤따르는 "·"에서만 끊어 이벤트 단위로 묶는다. 첫 조각은 기기명.
+  const parts = sn.controlChanges.split(/\s*·\s*(?=(?:\d{1,2}\/\d{1,2}\s+)?\d{1,2}:\d{2})/).map(x=>x.trim()).filter(Boolean);
+  let device = '';
+  if(parts.length){
+    const q = parts[0].match(/^'([^']+)'\s*(.*)$/);
+    if(q){
+      device = "'"+q[1]+"'";
+      if(q[2]) parts[0] = q[2]; else parts.shift();
+    } else if(!/^(?:\d{1,2}\/\d{1,2}\s+)?\d{1,2}:\d{2}/.test(parts[0])){
+      device = parts.shift();
+    }
+  }
+  const items = parts.map(it=>{
+    const m = it.match(/^((?:\d{1,2}\/\d{1,2}\s+)?\d{1,2}:\d{2})\s*(.*)$/);
+    return m ? { time:m[1], text:m[2] } : { time:'', text:it };
+  });
+  return `<details style="margin-bottom:4px" ${detailsAttr('cc_'+(dk||'')+'_'+(sn.reportDate||'')+'_'+(sn.reportHour||''))}>
+    <summary style="cursor:pointer;color:var(--info);font-size:12px">🕘 제어 변화 이력 (${items.length}건)${device?` <span style="color:var(--text3)">· ${escHtml(device)}</span>`:''}</summary>
+    <div style="margin-top:4px;padding-left:8px;border-left:2px solid var(--border)">
+      ${items.map(it=>`<div style="font-size:12px;color:var(--text2);padding:2px 0;display:flex;gap:8px"><span style="color:var(--text3);min-width:78px;font-variant-numeric:tabular-nums">${escHtml(it.time)}</span><span>${escHtml(it.text)}</span></div>`).join('')}
+    </div>
+  </details>`;
+}
+
+function renderControlTable(sn){
+  if(!(sn.controlTable && sn.controlTable.rows && sn.controlTable.rows.length)) return '';
+  return `<div style="margin:2px 0 6px;overflow-x:auto">
+    <table style="border-collapse:collapse;font-size:11.5px;color:var(--text2)">
+      <thead><tr>${(sn.controlTable.headers||[]).map(h=>`<th style="text-align:left;padding:2px 10px 2px 0;border-bottom:1px solid var(--border);color:var(--text3);font-weight:600;white-space:nowrap">${escHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${sn.controlTable.rows.map(row=>`<tr>${(row||[]).map(cell=>`<td style="padding:2px 10px 2px 0;white-space:nowrap">${escHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+}
+
+// 기기 하나의 기간 이력 (날짜별 감지 시각·편차·근거 + 조치 기록)
+function renderDeviceHistPanel(dk, storeName, location, endDate, days){
+  const occ = deviceOccurrences(dk, endDate, days);
+  const alog = logByKeys(state.actionLog, dk, storeName, location).slice(-10).reverse();
+  if(!occ.length && !alog.length) return `<div style="font-size:12px;color:var(--text3);padding:6px 0">최근 ${days}일 동안 기록이 없어요</div>`;
+  const dates = [...new Set(occ.map(o=>o.date))];
+  const urgentN = occ.filter(o=>o.isUrgent).length;
+  const byDate = {};
+  occ.forEach(o=>{ (byDate[o.date]=byDate[o.date]||[]).push(o); });
+  const summary = occ.length
+    ? `<div style="font-size:12px;margin-bottom:6px"><b>최근 ${days}일 ${occ.length}회</b> · ${dates.length}일${urgentN?` · <span style="color:var(--danger)">긴급 ${urgentN}회</span>`:''} · 처음 ${mmdd(occ[0].date)} · 최근 ${mmdd(occ[occ.length-1].date)}</div>` : '';
+  const rows = Object.keys(byDate).sort().reverse().map(d=>{
+    const list = byDate[d];
+    const last = list[list.length-1];
+    return `<div style="padding:5px 0;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px">
+        <b style="min-width:42px">${mmdd(d)}</b>
+        ${list.map(o=>`<span style="color:${o.isUrgent?'var(--danger)':'var(--text2)'}">${fmtHour(o.hour)} 리포트${o.judgedAt?` (${escHtml(o.judgedAt)} 판정)`:''} · 편차 ${escHtml(o.deviation||'-')}${o.isUrgent?' ⚠️':''}</span>`).join('<span style="color:var(--text3)">|</span>')}
+      </div>
+      ${last.reason?`<div style="font-size:11.5px;color:var(--text3);margin:2px 0 0 52px">${escHtml(last.vtype)} — ${escHtml(last.reason)}</div>`:''}
+    </div>`;
+  }).join('');
+  const alogHtml = alog.length ? `<div style="margin-top:6px;font-size:11.5px;color:var(--text2)"><b>조치 기록</b>${alog.map(a=>`<div style="padding:2px 0">${escHtml(fmtDT(a.at))} · ${escHtml(ACTION_LABELS[a.status||'']||a.status)} · ${escHtml(a.by||'이름 없음')}</div>`).join('')}</div>` : '';
+  return `<div style="margin-top:6px;padding:8px 10px;background:var(--surface2);border-radius:6px">${summary}${rows}${alogHtml}</div>`;
+}
+
+async function toggleDeviceHist(el, ev){
+  if(ev) ev.stopPropagation();
+  const dk = el.dataset.key, date = el.dataset.date;
+  if(state.openHist.has(dk)){ state.openHist.delete(dk); rerenderViews(true); return; }
+  state.openHist.add(dk);
+  state.histLoading.add(dk);
+  rerenderViews(true);
+  try{ await ensureDetailRange(date, 30); }catch(e){}
+  state.histLoading.delete(dk);
+  rerenderViews(true);
+}
+
+function renderOneSensorCard(s, sn){
+  const ctxDate = sn.reportDate || state.dashDate || '';
+  const dk = canonicalKey(s, sn);
+  const dkA = escAttr(dk);
+  const cls = sn.isUrgent?'badge-danger':(sn.vtype==='과냉방 의심'?'badge-info':'badge-warn');
+  const summaryLine = sn.tailnote ? `<div style="font-size:13px;font-weight:600;color:${sn.isUrgent?'#c0392b':'#9a5b00'};margin-bottom:6px">💡 ${escHtml(sn.tailnote)}</div>` : '';
+  const flowHtml = (sn.flow&&sn.flow.length)
+    ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px">${sn.flow.map(f=>`<span style="color:var(--text3)">${escHtml(f.label)}</span> <b style="color:var(--text)">${escHtml(f.val)}</b>`).join(' <span style="color:var(--text3)">→</span> ')}</div>`
+    : '';
+
+  // --- 코멘트 (작성자 포함) ---
+  const c = recByKeys(state.comments, dk, s.name, sn.location);
+  const commentText = c?c.text:'';
+  const log = logByKeys(state.commentLog, dk, s.name, sn.location);
+  const metaHtml = c&&c.updatedAt ? `<span style="font-size:11px;color:var(--text3)">최근 수정: ${escHtml(new Date(c.updatedAt).toLocaleString('ko-KR'))}${c.by?' · '+escHtml(c.by):''}</span>` : '';
+  const logHtml = log.length ? `<details style="margin-top:4px" ${detailsAttr('log_'+dk)}>
+      <summary style="cursor:pointer;font-size:11px;color:var(--info)">이전 코멘트 기록 (${log.length})</summary>
+      <div style="margin-top:4px">${log.slice(-8).reverse().map(e=>`<div style="font-size:11px;color:var(--text2);padding:3px 0;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>${escHtml(new Date(e.updatedAt).toLocaleString('ko-KR'))}${e.by?' · '+escHtml(e.by):''} — ${escHtml(e.text)}</span>
+        ${e.id?`<button class="btn btn-sm" style="padding:1px 6px;font-size:10px;flex:none" data-k="${escAttr(e._k)}" data-id="${escAttr(e.id)}" onclick="deleteCommentLogEntry(this,event)">삭제</button>`:''}
+      </div>`).join('')}</div>
+    </details>` : '';
+
+  // --- 정상 처리 (기간) ---
+  const st = recByKeys(state.deviceStatus, dk, s.name, sn.location);
+  const isNormal = isNormalOn(st, ctxDate);
+  const normalCtl = isNormal
+    ? `<span class="badge badge-ok" title="${escAttr((st.by?st.by+' · ':'')+fmtDT(st.updatedAt))}">정상 처리 · ${escHtml(normalScopeLabel(st))}</span>
+       <button class="btn btn-sm" data-key="${dkA}" onclick="clearDeviceNormal(this,event)">해제</button>`
+    : `<select data-key="${dkA}" data-date="${escAttr(ctxDate)}" onclick="event.stopPropagation()" onchange="setDeviceNormal(this)" style="font-size:12px;padding:3px 6px;color:var(--ok);border-color:var(--ok)">
+         <option value="">✓ 정상 처리…</option>
+         <option value="day">${ctxDate?mmdd(ctxDate)+' 하루만':'오늘만'}</option>
+         <option value="7d">7일간</option>
+         <option value="30d">30일간</option>
+         <option value="forever">해제할 때까지</option>
+       </select>`;
+  const expiredNote = (!isNormal && st && st.status==='normal' && st.until && ctxDate>st.until)
+    ? `<span style="font-size:11px;color:var(--text3)">정상 처리 기간 만료(~${mmdd(st.until)})</span>` : '';
+
+  // --- 조치 상태 ---
+  const act = recByKeys(state.deviceAction, dk, s.name, sn.location);
+  const actStatus = act ? (act.status||'') : '';
+  const reoccurred = isReoccurred({ ...sn, reportDate:ctxDate }, act);
+  const actSel = `<select data-key="${dkA}" data-store="${escAttr(s.name)}" data-loc="${escAttr(sn.location)}" onclick="event.stopPropagation()" onchange="setDeviceAction(this)"
+      style="font-size:12px;padding:3px 6px;color:${ACTION_COLORS[actStatus]};border-color:${actStatus?ACTION_COLORS[actStatus]:'var(--border)'}">
+      ${Object.entries(ACTION_LABELS).map(([v,l])=>`<option value="${v}" ${v===actStatus?'selected':''}>${v?l:'조치: 미확인'}</option>`).join('')}
+    </select>`;
+  const actMeta = act && act.updatedAt ? `<span style="font-size:11px;color:var(--text3)">${escHtml(ACTION_LABELS[actStatus]||actStatus)} · ${escHtml(act.by||'이름 없음')} · ${escHtml(fmtDT(act.updatedAt))}</span>` : '';
+  const reoccurBadge = reoccurred ? `<span class="badge badge-danger">조치 완료 후 재발생</span>` : '';
+
+  // --- 반복 감지 (최근 7일) ---
+  const occ7 = deviceOccurrences(dk, ctxDate, 7);
+  const days7 = new Set(occ7.map(o=>o.date)).size;
+  const histOpen = state.openHist.has(dk);
+  const recurBadge = `<span class="badge ${days7>=3?'badge-danger':(occ7.length>1?'badge-warn':'badge-info')}" style="cursor:pointer" data-key="${dkA}" data-date="${escAttr(ctxDate)}" onclick="toggleDeviceHist(this,event)" title="눌러서 최근 30일 이력 보기">🔁 최근 7일 ${occ7.length||1}회 · ${days7||1}일 ${histOpen?'▲':'▼'}</span>`;
+  const histPanel = histOpen
+    ? (state.histLoading.has(dk) ? `<div style="font-size:12px;color:var(--text2);padding:6px 0">⏳ 최근 30일 이력 불러오는 중...</div>` : renderDeviceHistPanel(dk, s.name, sn.location, ctxDate, 30))
+    : '';
+
+  // --- 당일 감지 시각 ---
+  const occs = sn.occurrences||[];
+  const timeLabel = occs.length>1
+    ? `<div style="font-size:11px;color:var(--text2);margin-bottom:4px"><b>오늘 ${occs.length}회 감지</b> · ${occs.map(o=>`${fmtHour(o.reportHour)} 리포트${o.judgedAt?` (${escHtml(o.judgedAt)} 판정)`:''}${o.isUrgent?' ⚠️':''}`).join(' · ')}</div>`
+    : ((sn.reportHour||sn.judgedAt) ? `<div style="font-size:11px;color:var(--text3);margin-bottom:4px">${sn.reportHour?fmtHour(sn.reportHour)+' 리포트':''}${(sn.reportHour&&sn.judgedAt)?' · ':''}${sn.judgedAt?escHtml(sn.judgedAt)+' 판정':''}</div>` : '');
+
+  const typeBadge = `<span class="badge ${cls}">${escHtml(sn.vtype)}</span>`;
+
+  return `<div style="background:${isNormal?'#fafaf8':'#fff'};border:1px solid var(--border);border-left:3px solid ${isNormal?'var(--ok)':(sn.isUrgent?'var(--danger)':(actStatus==='done'&&!reoccurred?'var(--ok)':'var(--border)'))};border-radius:8px;padding:8px 10px;margin-bottom:6px;${isNormal?'opacity:.7':''}">
+    ${timeLabel}
+    <div class="row" style="justify-content:space-between;margin-bottom:4px;align-items:flex-start">
+      <span style="font-weight:600;color:${sn.location?'var(--text)':'#b26a00'}">${sn.location?escHtml(sn.location):'기기명 없음 · 이 시간대 파일을 다시 업로드해주세요'}</span>
+      <span class="row" style="gap:6px">${typeBadge}${actSel}${normalCtl}</span>
+    </div>
+    <div class="row" style="gap:6px;margin-bottom:6px">${recurBadge}${reoccurBadge}${expiredNote}${actMeta}</div>
+    ${histPanel}
+    ${summaryLine}
+    <div style="font-size:12px;color:var(--text2);margin-bottom:4px">
+      편차 <b style="color:var(--text)">${escHtml(sn.deviation)}</b> · 설정 ${escHtml(sn.setTemp)} · 현재 ${escHtml(sn.current)} · 판정 ${escHtml(sn.judgeCount)}
+    </div>
+    ${flowHtml}
+    <div style="font-size:12.5px;line-height:1.7">
+      ${(sn.extra||[]).filter(e=>e.label==='공간').map(e=>`<div style="margin-bottom:2px"><span class="meta-label">공간</span>${escHtml(e.text)}</div>`).join('')}
+      ${sn.reason?`<div style="margin-bottom:2px"><span class="meta-label">근거</span>${escHtml(sn.reason)}</div>`:''}
+      ${renderControlTable(sn)}
+      ${sn.control?`<div style="margin-bottom:2px"><span class="meta-label">제어</span>${escHtml(sn.control)}</div>`:''}
+      ${renderControlChanges(sn, dk)}
+      ${sn.note?`<div style="margin-bottom:2px"><span class="meta-label">참고</span>${escHtml(sn.note)}</div>`:''}
+      ${(sn.extra||[]).filter(e=>e.label!=='공간').map(e=>`<div style="margin-bottom:2px"><span class="meta-label">${escHtml(e.label)}</span>${escHtml(e.text)}</div>`).join('')}
+    </div>
+    <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+      <textarea class="comment-box" data-key="${dkA}" data-store="${escAttr(s.name)}" data-loc="${escAttr(sn.location)}" placeholder="이 기기에 대한 코멘트를 입력하세요..." onblur="saveCommentFromBox(this)">${escHtml(commentText)}</textarea>
+      <div class="row" style="justify-content:space-between;margin-top:2px">${metaHtml}</div>
+      ${logHtml}
+    </div>
+  </div>`;
+}
+
+function toggleBrandGroup(safe){
+  const list = document.getElementById('list-'+safe);
+  const chev = document.getElementById('chev-'+safe);
+  if(!list) return;
+  const nowOpen = !list.classList.contains('open');
+  list.classList.toggle('open', nowOpen);
+  if(chev) chev.classList.toggle('open', nowOpen);
+  if(nowOpen) state.closedBrands.delete(safe); else state.closedBrands.add(safe);
+}
+// 매장 상세 펼치기 — 펼친 매장은 기억해두고, 다시 그릴 때도 열린 상태를 유지한다 (펼칠 때만 카드를 그려서 가볍게)
+function toggleDetail(sid){
+  const el = document.getElementById('detail-'+sid);
+  if(!el) return;
+  const nowOpen = !el.classList.contains('open');
+  if(nowOpen){
+    state.openStores.add(sid);
+    const s = renderedStores[sid];
+    if(s && !el.innerHTML.trim()) el.innerHTML = renderSensorDetail(s);
+  } else state.openStores.delete(sid);
+  el.classList.toggle('open', nowOpen);
+}
+
+// ---------- 히스토리 ----------
+function historyKeysInRange(){
+  const from = document.getElementById('hist-from')?.value||'';
+  const to = document.getElementById('hist-to')?.value||'';
+  return Object.keys(state.history).filter(k=>{
+    const h = state.history[k];
+    if(from && h.date<from) return false;
+    if(to && h.date>to) return false;
+    return true;
+  }).sort();
+}
+
+let historyOpenHours = {}; // key(YYYY-MM-DD HHmm) -> bool, 세션 동안만 유지
+
+async function toggleHistoryHour(key){
+  const willOpen = !historyOpenHours[key];
+  if(willOpen && !state.historyDetail[key]){
+    historyOpenHours[key] = 'loading';
+    renderHistoryList();
+    try{
+      const snap = await alertHistDetailRef.child(safeKeyStr(key)).once('value');
+      state.historyDetail[key] = snap.val() || { stores: [] };
+    }catch(e){
+      console.error('상세 불러오기 오류:', e);
+      state.historyDetail[key] = { stores: [] };
+    }
+  }
+  historyOpenHours[key] = willOpen;
+  renderHistoryList();
+}
+
+let historyFilterByKey = {}; // key -> 'all' | 판정유형 문자열
+
+function setHistoryFilter(key, val, ev){
+  ev.stopPropagation();
+  historyFilterByKey[key] = val;
+  renderHistoryList();
+}
+
+// 히스토리/추이에서 카드를 그릴 때 "그 리포트의 날짜·시간" 기준으로 정상 처리 기간·반복 횟수를 판단하도록 문맥을 붙임
+function withReportCtx(store, date, hour){
+  return { ...store, sensors:(store.sensors||[]).map(sn=>({ ...sn, reportDate:date, reportHour:hour })) };
+}
+
+function renderHistorySnapshot(key, h){
+  const detail = state.historyDetail[key];
+  const allStores = detail && detail.stores && detail.stores.length ? detail.stores.map(s=>withReportCtx(s, h.date, h.hour)) : (h.stores||[]).map(s=>({...s, sensors:[]}));
+  const filter = historyFilterByKey[key]||'all';
+
+  const vtypeCounts = {};
+  let totalSensors = 0;
+  allStores.forEach(s=>(s.sensors||[]).forEach(sn=>{ vtypeCounts[sn.vtype||'기타']=(vtypeCounts[sn.vtype||'기타']||0)+1; totalSensors++; }));
+  const keyEsc = key.replace(/'/g,"\\'");
+  const chipHtml = totalSensors ? `<div class="row" style="margin-bottom:8px;gap:6px;flex-wrap:wrap">
+    <span onclick="setHistoryFilter('${keyEsc}','all',event)" class="badge ${filter==='all'?'badge-info':'badge-ok'}" style="cursor:pointer">전체 ${totalSensors}</span>
+    ${Object.entries(vtypeCounts).map(([vt,cnt])=>`<span onclick="setHistoryFilter('${keyEsc}','${vt.replace(/'/g,"\\'")}',event)" class="badge ${filter===vt?'badge-danger':'badge-warn'}" style="cursor:pointer">${escHtml(vt)} ${cnt}</span>`).join('')}
+  </div>` : '';
+
+  const stores = (filter==='all' ? allStores : allStores.map(s=>({...s, sensors:(s.sensors||[]).filter(sn=>(sn.vtype||'기타')===filter)})).filter(s=>s.sensors.length));
+  stores.sort((a,b)=>b.urgent-a.urgent || b.count-a.count);
+  return `<div style="padding:8px 12px 12px 40px;background:#fafaf8">
+    ${chipHtml}
+    ${stores.length?stores.map(s=>`
+      <div style="margin-bottom:10px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">${escHtml(s.name)} <span class="brand-chip">${escHtml(s.brand)}</span> ${s.urgent?`<span class="badge badge-danger" style="margin-left:4px">⚠️ ${s.urgent}</span>`:''}</div>
+        ${renderSensorDetail(s)}
+      </div>
+    `).join(''):'<div class="empty">해당 유형의 기기가 없어요</div>'}
+  </div>`;
+}
+
+function renderHistoryList(){
+  const cont = document.getElementById('hist-list');
+  const summaryEl = document.getElementById('hist-summary');
+  const keys = historyKeysInRange().reverse();
+  if(!keys.length){
+    cont.innerHTML='<div class="empty">해당 기간에 수집한 리포트가 없어요</div>';
+    if(summaryEl) summaryEl.innerHTML='';
+    return;
+  }
+  if(summaryEl){
+    const n = keys.length;
+    const avg = arr=>Math.round(arr.reduce((a,b)=>a+b,0)/n);
+    const avgStores = avg(keys.map(k=>state.history[k].summary.stores||0));
+    const avgIssues = avg(keys.map(k=>state.history[k].summary.issues||0));
+    const avgUrgent = avg(keys.map(k=>state.history[k].summary.urgent||0));
+    const maxUrgentKey = keys.reduce((a,b)=>(state.history[a].summary.urgent||0)>=(state.history[b].summary.urgent||0)?a:b);
+    const mu = state.history[maxUrgentKey];
+    summaryEl.innerHTML = `<div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:6px">
+      <div class="stat"><div class="stat-label">수집 횟수</div><div class="stat-val info">${n}</div></div>
+      <div class="stat"><div class="stat-label">평균 이상 매장</div><div class="stat-val warn">${avgStores}</div></div>
+      <div class="stat"><div class="stat-label">평균 이상 건수</div><div class="stat-val warn">${avgIssues}</div></div>
+      <div class="stat"><div class="stat-label">평균 긴급 (최고: ${mu.date} ${mu.hour.slice(0,2)}시 ${mu.summary.urgent})</div><div class="stat-val danger">${avgUrgent}</div></div>
+    </div>`;
+  }
+
+  const byDate = {};
+  keys.forEach(k=>{ (byDate[state.history[k].date]=byDate[state.history[k].date]||[]).push(k); });
+  const dates = Object.keys(byDate).sort().reverse();
+
+  cont.innerHTML = dates.map(date=>{
+    const hourKeys = byDate[date].sort().reverse();
+    const dayUrgentTotal = hourKeys.reduce((a,k)=>a+(state.history[k].summary.urgent||0),0);
+    const rows = hourKeys.map(k=>{
+      const h = state.history[k];
+      const state_ = historyOpenHours[k];
+      const isOpen = state_===true;
+      const isLoading = state_==='loading';
+      const kEsc = k.replace(/'/g,"\\'");
+      return `<div class="store-row" onclick="toggleHistoryHour('${kEsc}')">
+        <span class="chevron ${isOpen?'open':''}">▶</span>
+        <span style="width:60px;color:var(--text2)">${h.hour.slice(0,2)}:${h.hour.slice(2)}</span>
+        <span style="flex:1">이상 매장 ${h.summary.stores} · 건수 ${h.summary.issues}</span>
+        <span class="badge badge-danger">⚠️ ${h.summary.urgent}</span>
+      </div>
+      ${isLoading?'<div style="padding:8px 12px 12px 40px;color:var(--text2);font-size:12px">⏳ 상세 불러오는 중...</div>':(isOpen?renderHistorySnapshot(k,h):'')}`;
+    }).join('');
+    return `<div class="brand-group">
+      <div class="brand-head" style="cursor:default">
+        <span class="brand-name">${date}</span>
+        <span class="brand-meta">${hourKeys.length}회 수집${dayUrgentTotal?` · 긴급 누적 ${dayUrgentTotal}`:''}</span>
+      </div>
+      <div class="store-list open">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function populateTrendSuggestions(){
+  const dl = document.getElementById('trend-suggest');
+  if(!dl) return;
+  const names = new Set();
+  Object.values(state.history).forEach(h=>{
+    h.stores.forEach(s=>{ names.add(s.brand); names.add(s.name); });
+  });
+  dl.innerHTML = [...names].sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<option value="${escHtml(n)}">`).join('');
+}
+
+let trendOpenHours = {}; // 브랜드/매장별 추이에서 펼쳐진 시간대 (세션 동안만 유지)
+
+async function toggleTrendHour(key){
+  const willOpen = !trendOpenHours[key];
+  if(willOpen && !state.historyDetail[key]){
+    trendOpenHours[key] = 'loading';
+    renderTrend();
+    try{
+      const snap = await alertHistDetailRef.child(safeKeyStr(key)).once('value');
+      state.historyDetail[key] = snap.val() || { stores: [] };
+    }catch(e){
+      console.error('상세 불러오기 오류:', e);
+      state.historyDetail[key] = { stores: [] };
+    }
+  }
+  trendOpenHours[key] = willOpen;
+  renderTrend();
+}
+
+function renderTrend(){
+  const q = (document.getElementById('trend-store').value||'').trim();
+  const cont = document.getElementById('trend-result');
+  if(!q){ cont.innerHTML='<div class="empty">브랜드명 또는 매장명을 입력하면 최근 이력을 보여드려요</div>'; return; }
+  const keys = Object.keys(state.history).sort();
+  const rows = keys.map(k=>{
+    const h = state.history[k];
+    const matched = h.stores.filter(s=>s.name.includes(q) || s.brand.includes(q));
+    const count = matched.reduce((a,s)=>a+(s.count||0),0);
+    const urgent = matched.reduce((a,s)=>a+(s.urgent||0),0);
+    return { key:k, date:h.date, hour:h.hour, matched, count, urgent };
+  }).slice(-48);
+  if(!rows.some(r=>r.matched.length)){ cont.innerHTML='<div class="empty">해당 브랜드/매장의 이력이 없어요</div>'; return; }
+  const isMulti = rows.some(r=>r.matched.length>1);
+  const label = isMulti?'매장 '+[...new Set(rows.flatMap(r=>r.matched.map(m=>m.name)))].length+'개 합계':'';
+  cont.innerHTML = (label?`<div class="setting-desc" style="margin-bottom:8px">${escHtml(q)} 검색 결과: ${label}</div>`:'')
+    + rows.map(r=>{
+      const has = r.matched.length>0;
+      const color = has ? (r.urgent>0?'#c0392b':'#ba7517') : '#e0ded8';
+      const names = r.matched.map(m=>m.name).join(', ');
+      const lbl = has ? `${r.count}건${r.urgent?' · ⚠️'+r.urgent:''} — ${escHtml(names)}` : '해당 매장 이상 없음';
+      const openState = trendOpenHours[r.key];
+      const isOpen = openState===true;
+      const isLoading = openState==='loading';
+      const kEsc = r.key.replace(/'/g,"\\'");
+      const rowHtml = `<div class="hist-row" style="${has?'cursor:pointer':''}" ${has?`onclick="toggleTrendHour('${kEsc}')"`:''}>
+        <span class="trend-dot" style="background:${color}"></span>
+        <span style="width:120px;color:var(--text2);flex-shrink:0">${r.date} ${r.hour.slice(0,2)}:${r.hour.slice(2)}</span>
+        <span style="flex:1">${lbl}</span>
+        ${has?`<span class="chevron ${isOpen?'open':''}">▶</span>`:''}
+      </div>`;
+      let detailHtml = '';
+      if(isLoading) detailHtml = '<div style="padding:6px 0 6px 132px;color:var(--text2);font-size:12px">⏳ 상세 불러오는 중...</div>';
+      else if(isOpen){
+        const detail = state.historyDetail[r.key];
+        const matchedNames = new Set(r.matched.map(m=>m.name));
+        const detailStores = (detail&&detail.stores?detail.stores:[]).filter(s=>matchedNames.has(s.name)).map(s=>withReportCtx(s, r.date, r.hour));
+        detailHtml = `<div style="padding:6px 0 10px 132px">
+          ${detailStores.length?detailStores.map(s=>`
+            <div style="margin-bottom:8px">
+              <div style="font-weight:600;font-size:13px;margin-bottom:4px">${escHtml(s.name)} <span class="brand-chip">${escHtml(s.brand)}</span></div>
+              ${renderSensorDetail(s)}
+            </div>`).join(''):'<div style="font-size:12px;color:var(--text2)">상세 정보를 찾지 못했어요.</div>'}
+        </div>`;
+      }
+      return rowHtml + detailHtml;
+    }).join('');
+}
+
+
+// ---------- 매장별 기기 이상 이력 (히스토리 탭) ----------
+let devHistQuery = null; // { q, days, end, loading }
+async function runDeviceHistory(){
+  const q = (document.getElementById('devhist-store').value||'').trim();
+  const days = parseInt(document.getElementById('devhist-days').value,10)||30;
+  if(!q){ devHistQuery = null; renderDeviceHistoryResult(); return; }
+  const allDates = Object.values(state.history).map(h=>h.date).sort();
+  const end = allDates[allDates.length-1] || defaultDateHour().date; // 가장 최근 리포트 날짜 기준
+  devHistQuery = { q, days, end, loading:true };
+  renderDeviceHistoryResult();
+  try{ await ensureDetailRange(end, days); }catch(e){}
+  if(devHistQuery && devHistQuery.q===q){ devHistQuery.loading = false; renderDeviceHistoryResult(); }
+}
+
+function renderDeviceHistoryResult(){
+  const cont = document.getElementById('devhist-result');
+  if(!cont) return;
+  if(!devHistQuery){ cont.innerHTML = '<div class="empty">매장명을 입력하고 조회를 눌러주세요</div>'; return; }
+  const { q, days, end, loading } = devHistQuery;
+  if(loading){ cont.innerHTML = `<div style="font-size:12px;color:var(--text2);padding:8px 0">⏳ 최근 ${days}일치 리포트를 불러오는 중이에요...</div>`; return; }
+  const start = addDays(end, -(days-1));
+  const idx = getDeviceIndex();
+  const stores = {};
+  Object.entries(idx).forEach(([dk, list])=>{
+    const occ = list.filter(o=>o.date>=start && o.date<=end && (o.store.includes(q) || (o.brand||'').includes(q)));
+    if(!occ.length) return;
+    const last = occ[occ.length-1];
+    (stores[last.store] = stores[last.store] || []).push({ dk, occ, last, days:new Set(occ.map(o=>o.date)).size });
+  });
+  const names = Object.keys(stores);
+  if(!names.length){ cont.innerHTML = `<div class="empty">${escHtml(mmdd(start))}~${escHtml(mmdd(end))} 사이 "${escHtml(q)}" 매장의 이상 기록이 없어요</div>`; return; }
+  names.sort((a,b)=>stores[b].reduce((x,d)=>x+d.occ.length,0)-stores[a].reduce((x,d)=>x+d.occ.length,0));
+  const colStyle = 'display:grid;grid-template-columns:minmax(180px,2.2fr) 70px 55px 55px 110px 110px 110px;gap:8px;align-items:center';
+  cont.innerHTML = `<div style="font-size:12px;color:var(--text2);margin-bottom:8px">기간 ${escHtml(start)} ~ ${escHtml(end)} · 매장 ${names.length}곳</div>` + names.map(name=>{
+    const devs = stores[name].sort((a,b)=>b.days-a.days || b.occ.length-a.occ.length);
+    const total = devs.reduce((x,d)=>x+d.occ.length,0);
+    const rows = devs.map(d=>{
+      const loc = d.last.location;
+      const act = recByKeys(state.deviceAction, d.dk, name, loc);
+      const st = recByKeys(state.deviceStatus, d.dk, name, loc);
+      const normalNow = isNormalOn(st, end);
+      const urgentN = d.occ.filter(o=>o.isUrgent).length;
+      return `<details style="border-top:1px solid var(--border)" ${detailsAttr('dh_'+d.dk)}>
+        <summary style="${colStyle};padding:7px 4px;cursor:pointer;font-size:12.5px;list-style:none">
+          <span style="font-weight:600">${escHtml(loc||'(기기명 없음)')}</span>
+          <span><b>${d.occ.length}</b>회</span>
+          <span style="color:${d.days>=3?'var(--danger)':'var(--text2)'}">${d.days}일</span>
+          <span style="color:${urgentN?'var(--danger)':'var(--text3)'}">${urgentN?'⚠️'+urgentN:'-'}</span>
+          <span style="color:var(--text2)">${mmdd(d.last.date)} ${escHtml(d.last.judgedAt||fmtHour(d.last.hour))}</span>
+          <span style="color:${ACTION_COLORS[act?act.status||'':'']}">${escHtml(ACTION_LABELS[act?act.status||'':''])}</span>
+          <span style="color:${normalNow?'var(--ok)':'var(--text3)'}">${normalNow?'정상 처리 '+escHtml(normalScopeLabel(st)):'-'}</span>
+        </summary>
+        <div style="padding:0 4px 8px">${renderDeviceHistPanel(d.dk, name, loc, end, days)}</div>
+      </details>`;
+    }).join('');
+    return `<div style="margin-bottom:14px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px">${escHtml(name)} <span style="font-weight:400;color:var(--text2);font-size:12px">· 기기 ${devs.length}대 · 총 ${total}회 감지</span></div>
+      <div style="${colStyle};font-size:11px;color:var(--text3);padding:0 4px 4px">
+        <span>위치</span><span>감지</span><span>일수</span><span>긴급</span><span>최근 감지</span><span>조치 상태</span><span>정상 처리</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function saveUserName(v){
+  const n = (v||'').trim();
+  try{ if(n) localStorage.setItem('tempAlertUserName', n); else localStorage.removeItem('tempAlertUserName'); }catch(e){}
+  const el = document.getElementById('username-saved');
+  if(el){ el.style.display='inline'; setTimeout(()=>el.style.display='none',1500); }
+}
+
+// ---------- 설정 ----------
+function saveSettings(silent){
+  state.settings.channel = (document.getElementById('s-channel').value||'').trim() || 'C0BRL7W5P1B';
+  state.settings.brands = (document.getElementById('s-brands').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  state.settings.stores = (document.getElementById('s-stores-watch').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  persistSettings();
+  if(!silent){
+    const el=document.getElementById('settings-saved');
+    el.style.display='inline'; setTimeout(()=>el.style.display='none',2000);
+  }
+}
+
+function clearWatch(){
+  if(!confirm('관심 브랜드/매장 목록을 모두 지울까요?'))return;
+  state.settings.brands=[]; state.settings.stores=[];
+  document.getElementById('s-brands').value='';
+  document.getElementById('s-stores-watch').value='';
+  saveSettings();
+  renderDash();
+}
+
+function applySettingsToUI(){
+  document.getElementById('s-channel').value = state.settings.channel||'C0BRL7W5P1B';
+  document.getElementById('s-brands').value = (state.settings.brands||[]).join('\n');
+  document.getElementById('s-stores-watch').value = (state.settings.stores||[]).join('\n');
+}
+
+function setSyncStatus(status){
+  const el=document.getElementById('sync-status');
+  const map={
+    connected:['🟢 연결됨','#1d9e75','#eaf3de','#9fe1cb'],
+    offline:['🔴 오프라인','#c0392b','#fcebeb','#f7c1c1'],
+    synced:['✓ 동기화됨','#1d9e75','#eaf3de','#9fe1cb']
+  };
+  const [t,c,bg,b]=map[status]||['...','#999','#f5f4f0','#e0ded8'];
+  el.textContent=t; el.style.color=c; el.style.background=bg; el.style.borderColor=b;
+}
+
+// ---------- 초기화 ----------
+function init(){
+  populateHourSelect();
+  const {date, hour} = defaultDateHour();
+  document.getElementById('rpt-date').value = date;
+  document.getElementById('rpt-hour').value = hour;
+  document.getElementById('dash-date').value = date;
+  document.getElementById('mode-daily').classList.add('btn-primary');
+  document.getElementById('s-username').value = getUserName(false);
+
+  // 로컬 설정 즉시 로드
+  try{
+    const saved = localStorage.getItem('tempAlertSettings');
+    if(saved) state.settings = {...state.settings, ...JSON.parse(saved)};
+  }catch(e){}
+  applySettingsToUI();
+
+  db.ref('.info/connected').on('value', snap=>{
+    setSyncStatus(snap.val()===true?'connected':'offline');
+  });
+
+  alertSettingsRef.on('value', snap=>{
+    const v = snap.val();
+    if(v){ state.settings = {...state.settings, ...v}; applySettingsToUI(); renderDash(); }
+  });
+
+  let firstHistLoad = true;
+  alertHistRef.on('value', snap=>{
+    const v = snap.val();
+    if(v){
+      state.history = {};
+      Object.values(v).forEach(h=>{ state.history[h.date+' '+h.hour] = h; });
+      renderHistoryList();
+      // 최초 진입 시, 조회 날짜(기본 오늘)에 해당하는 리포트가 이미 있으면 자동으로 대시보드를 채워줌
+      if(firstHistLoad){
+        firstHistLoad = false;
+        const d = document.getElementById('dash-date').value;
+        if(Object.values(state.history).some(h=>h.date===d)) refreshDashCurrentView();
+      }
+    }
+  });
+
+  commentsRef.on('value', snap=>{
+    state.comments = snap.val() || {};
+    if(!isEditingComment()){ renderDash(); const ht=document.getElementById('tab-history'); if(ht&&ht.classList.contains('active')) renderHistoryList(); }
+  });
+
+  commentLogRef.on('value', snap=>{
+    const v = snap.val() || {};
+    state.commentLog = {};
+    Object.entries(v).forEach(([key, logObj])=>{
+      state.commentLog[key] = Object.entries(logObj||{})
+        .map(([id, e])=>({ id, ...e }))
+        .sort((a,b)=>(a.updatedAt||'').localeCompare(b.updatedAt||''));
+    });
+    rerenderViews();
+  });
+
+  // 아래 상태들은 다른 사람이 바꿔도 실시간으로 반영됨 (코멘트 입력 중이면 다시 그리기를 미룸)
+  deviceStatusRef.on('value', snap=>{ state.deviceStatus = snap.val() || {}; rerenderViews(); });
+  deviceActionRef.on('value', snap=>{ state.deviceAction = snap.val() || {}; rerenderViews(); });
+  actionLogRef.on('value', snap=>{
+    const v = snap.val() || {};
+    state.actionLog = {};
+    Object.entries(v).forEach(([key, logObj])=>{
+      state.actionLog[key] = Object.entries(logObj||{}).map(([id,e])=>({ id, ...e })).sort((a,b)=>(a.at||'').localeCompare(b.at||''));
+    });
+    rerenderViews();
+  });
+  keyAliasRef.on('value', snap=>{ state.keyAlias = snap.val() || {}; rerenderViews(); });
+}
+init();
+</script>
+</body>
+</html>
