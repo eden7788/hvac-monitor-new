@@ -547,6 +547,7 @@ function parseReportFromDom(rawHtml){
     else if(label.includes('이상 건수')) summary.issues = val;
     else if(label.includes('긴급')) summary.urgent = val;
     else if(label.includes('물리')) summary.physical = val;
+    else if(label.includes('판정 보류')) summary.holds = val;
   });
   const footerTxt = doc.querySelector('footer')?.textContent||'';
   const mGen = footerTxt.match(/생성\s*([\d\-: ]+KST)/);
@@ -598,6 +599,8 @@ function parseReportFromDom(rawHtml){
       const location = buildSensorLocation(art, basis);
       const vtype = (art.querySelector('.vchip')?.textContent||'').trim();
       const isUrgent = art.getAttribute('data-urgent')==='1' || art.classList.contains('sev-high');
+      // 판정 보류 카드(11/02~): 가동 상태를 확인할 수 없어 효율 판정을 하지 않은 센서. 근거·편차 대신 '보류 사유'·'저장 설정'이 들어온다.
+      const isHold = art.classList.contains('operation-hold') || vtype==='판정 보류';
       const stat2 = {};
       art.querySelectorAll('.stats .stat2').forEach(s2=>{
         const label = (s2.querySelector('small')?.textContent||'').trim();
@@ -627,13 +630,20 @@ function parseReportFromDom(rawHtml){
           }
           meta[dt] = ddClone.textContent.trim();
         } else {
-          meta[dt] = ddEl.textContent.trim();
+          // '저장 설정'처럼 근거 외 항목에 표가 들어있는 경우도 표는 따로 빼고 남은 문구만 보관
+          const ddClone = ddEl.cloneNode(true);
+          const tbl = ddClone.querySelector('table');
+          if(tbl){
+            if(!reasonControlTable) reasonControlTable = parseControlTable(tbl);
+            tbl.remove();
+          }
+          meta[dt] = ddClone.textContent.replace(/\s+/g,' ').trim();
         }
       });
-      const knownKeys = ['근거','제어','참고','제어 변화','제어변화'];
+      const knownKeys = ['근거','보류 사유','제어','참고','제어 변화','제어변화'];
       const extra = Object.entries(meta).filter(([k])=>!knownKeys.includes(k)).map(([label,text])=>({label,text}));
       // 근거 문구 끝에 붙는 "(11:34 판정)" 같은 실제 판정 시각을 별도 필드로 분리
-      const reasonRaw = meta['근거']||'';
+      const reasonRaw = meta['근거']||meta['보류 사유']||'';
       const judgeMatch = reasonRaw.match(/\((\d{1,2}:\d{2})\s*판정(?:\s*기준)?\)\s*$/);
       // 판정 시각은 원본 JSON(now)을 우선, 없으면 문구에서 추출
       let judgedAt = '';
@@ -646,7 +656,7 @@ function parseReportFromDom(rawHtml){
       const diffNum = numOrNull(basis.diff_eff), targetNum = numOrNull(basis.target_eff);
       const reasonClean = judgeMatch ? reasonRaw.slice(0, judgeMatch.index).trim() : reasonRaw;
       return {
-        location, vtype, isUrgent, judgedAt,
+        location, vtype, isUrgent, isHold, judgedAt,
         // 기기 고유 식별자 (원본 JSON) — 매장명/센서명이 바뀌어도 같은 기기로 이어지게 하는 기준
         storeId: numOrNull(basis.storeId), sensorId: numOrNull(basis.sensorId),
         // 편차/설정온도는 부호·표기가 화면 문구에 맞춰져 있어 문구를 우선 쓰고, 문구가 비면 JSON 값으로 대체
@@ -655,7 +665,7 @@ function parseReportFromDom(rawHtml){
         current: stat2['현재 (12:00)']||Object.entries(stat2).find(([k])=>k.startsWith('현재'))?.[1]||'',
         judgeCount: stat2['이상·의심 판정']||'',
         tailnote, flow,
-        reason: reasonClean, control: meta['제어']||'', note: meta['참고']||'',
+        reason: reasonClean, control: meta['제어']||'', note: meta['참고']||(art.querySelector('.hold-note')?.textContent||'').trim(),
         controlChanges: meta['제어 변화']||meta['제어변화']||'',
         controlTable: reasonControlTable, // 근거 판정 시점의 컨트롤러별 설정온도/풍량/모드 표 (없으면 null)
         extra // 근거/제어/참고/제어변화 외에 리포트에 새로 생긴 항목이 있으면 여기 담겨서 화면에 그대로 표시됨
@@ -712,6 +722,8 @@ function checkParseQuality(parsed){
     (s.sensors||[]).forEach(sn=>{
       total++;
       if(!sn.location) noLoc++;
+      // 판정 보류 센서는 원래 근거·편차가 없는 카드라 누락으로 세지 않는다
+      if(sn.isHold || sn.vtype==='판정 보류') return;
       if(!sn.reason) noReason++;
       if(!sn.deviation) noDev++;
     });
@@ -751,7 +763,7 @@ function handleFetchedContent(text, date, hour, sourceUrl, silent){
   const detailStores = parsed.stores.map(s=>({
     name:s.name, brand:s.brand, count:s.count, urgent:s.urgent,
     sensors:(s.sensors||[]).map(sn=>({
-      location:sn.location, vtype:sn.vtype, isUrgent:sn.isUrgent, judgedAt:sn.judgedAt||'',
+      location:sn.location, vtype:sn.vtype, isUrgent:sn.isUrgent, isHold:!!sn.isHold, judgedAt:sn.judgedAt||'',
       storeId: sn.storeId!=null ? sn.storeId : null, sensorId: sn.sensorId!=null ? sn.sensorId : null,
       deviation:sn.deviation, setTemp:sn.setTemp, current:sn.current, judgeCount:sn.judgeCount,
       tailnote:sn.tailnote, flow:sn.flow||[], reason:sn.reason, control:sn.control, note:sn.note, controlChanges:sn.controlChanges, controlTable:sn.controlTable||null, extra:sn.extra||[]
