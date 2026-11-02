@@ -1416,7 +1416,7 @@ function renderDash(){
   document.getElementById('s-hidden').textContent = sm.hidden ? `· 정상 처리 ${sm.hidden} 제외` : '';
 
   let list = state.current.stores.slice();
-  if(q) list = list.filter(s=> s.name.includes(q) || s.brand.includes(q));
+  if(q){ const bmap = learnedBrandMap(); list = list.filter(s=>storeMatches(s, q, bmap)); }
   if(watchOnly) list = list.filter(isWatched);
   if(urgentOnly) list = list.filter(s=>s.urgent>0);
   if(actFilter!=='all'){
@@ -1840,6 +1840,31 @@ function populateTrendSuggestions(){
   dl.innerHTML = [...names].sort((a,b)=>a.localeCompare(b,'ko')).map(n=>`<option value="${escHtml(n)}">`).join('');
 }
 
+// 리포트는 그 시간대에 같은 브랜드 매장이 2곳 이상일 때만 브랜드로 묶어 보여준다.
+// 1곳만 걸린 시간대엔 브랜드 없이 매장명만 나오므로, 다른 리포트에서 한 번이라도 묶여 나온 적 있으면 그 브랜드로 본다.
+function learnedBrandMap(){
+  const map = {};
+  Object.values(state.history).forEach(h=>(h.stores||[]).forEach(s=>{
+    if(s.brand && s.brand!==s.name) map[s.name] = s.brand;
+  }));
+  // 한 번도 묶여 나온 적 없는 매장은 매장명 첫 단어로 추정 (예: 'ABC마트 GS부산서면본점' → 'ABC마트_리프').
+  // 같은 첫 단어를 쓰는 브랜드가 하나뿐일 때만 붙여서 다른 브랜드에 잘못 섞이지 않게 한다.
+  const brands = [...new Set(Object.values(map))];
+  const baseOf = b=>b.split(/[_\s]/)[0];
+  Object.values(state.history).forEach(h=>(h.stores||[]).forEach(s=>{
+    if(map[s.name] || (s.brand && s.brand!==s.name)) return;
+    const first = s.name.trim().split(/\s+/)[0];
+    const cands = brands.filter(b=>baseOf(b)===first);
+    if(cands.length===1) map[s.name] = cands[0];
+  }));
+  return map;
+}
+function storeBrand(s, map){ return (map&&map[s.name]) || s.brand || s.name; }
+function storeMatches(s, q, map){
+  const lq = q.toLocaleLowerCase('ko');
+  return s.name.toLocaleLowerCase('ko').includes(lq) || storeBrand(s,map).toLocaleLowerCase('ko').includes(lq);
+}
+
 let trendOpenHours = {}; // 브랜드/매장별 추이에서 펼쳐진 시간대 (세션 동안만 유지)
 
 async function toggleTrendHour(key){
@@ -1864,9 +1889,10 @@ function renderTrend(){
   const cont = document.getElementById('trend-result');
   if(!q){ cont.innerHTML='<div class="empty">브랜드명 또는 매장명을 입력하면 최근 이력을 보여드려요</div>'; return; }
   const keys = Object.keys(state.history).sort();
+  const bmap = learnedBrandMap();
   const rows = keys.map(k=>{
     const h = state.history[k];
-    const matched = h.stores.filter(s=>s.name.includes(q) || s.brand.includes(q));
+    const matched = h.stores.filter(s=>storeMatches(s, q, bmap));
     const count = matched.reduce((a,s)=>a+(s.count||0),0);
     const urgent = matched.reduce((a,s)=>a+(s.urgent||0),0);
     return { key:k, date:h.date, hour:h.hour, matched, count, urgent };
