@@ -1541,8 +1541,8 @@ function renderTodayDetail(sn, dk){
     ? `<div style="font-size:12px;color:var(--text2);margin-bottom:4px">📈 오늘 현재온도 추이: ${trendParts.join(' <span style="color:var(--text3)">→</span> ')}</div>`
     : '';
   // 최신 리포트는 카드 본문에 이미 그대로 나와있으니(근거/가동흐름 등) 펼치기엔 안 넣고,
-  // 그 이전 리포트들만 "최근 이력" 패널과 같은 톤으로 최신순(내림차순)으로 보여준다.
-  const prior = all.slice(0, -1).slice().reverse();
+  // 그 이전 리포트들만 보여준다. 추이 줄과 같은 흐름으로 읽히도록 과거→최신 순서 유지.
+  const prior = all.slice(0, -1);
   if(!prior.length) return trendLine;
   const rows = prior.map(o=>{
     const flowTxt = (o.flow&&o.flow.length) ? o.flow.map(f=>`<span style="color:var(--text3)">${escHtml(f.label)}</span> <b>${escHtml(f.val)}</b>`).join(' <span style="color:var(--text3)">→</span> ') : '';
